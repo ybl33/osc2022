@@ -111,6 +111,10 @@ $(OUT_IMG): $(OUT_ELF)
 $(BUILD_DIRECTORIES):
 	mkdir -p $@
 
+# QEMU
+qemu:
+	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -serial null -serial stdio
+
 clean:
 	rm -rf *.elf
 	rm -rf *.img

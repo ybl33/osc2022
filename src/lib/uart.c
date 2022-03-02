@@ -2,22 +2,6 @@
 
 void uart_init () {
     unsigned int d;
-    /* Set mini uart enable */
-    d = mmio_get(AUX_ENABLES);
-    d = d | 1;
-    mmio_put(AUX_ENABLES, d);
-    /* Disable transmitter and receiver during configuration */
-    mmio_put(AUX_MU_CNTL_REG, 0);
-    /* Disable interrupt */
-    mmio_put(AUX_MU_IER_REG, 0);
-    /* Set the data size to 8 bit */
-    mmio_put(AUX_MU_LCR_REG, 3);
-    /* Disable auto flow control */
-    mmio_put(AUX_MU_MCR_REG, 0);
-    /* Set baud rate to 115200 */
-    mmio_put(AUX_MU_BAUD_REG, 270);
-    /* Clear RX/TX FIFO */
-    mmio_put(AUX_MU_IIR_REG, 0xC6);
 
     /* Get previous status of GPFSEL1 */
     d = mmio_get(GPFSEL1); 
@@ -37,8 +21,26 @@ void uart_init () {
     for (int i = 0; i < 150; i++) asm volatile ("nop");
     /* Remove clock */
     mmio_put(GPPUDCLK0, 0);
+
+    /* Set mini uart enable */
+    d = mmio_get(AUX_ENABLES);
+    d = d | 1;
+    mmio_put(AUX_ENABLES, d);
+    /* Disable transmitter and receiver during configuration */
+    mmio_put(AUX_MU_CNTL_REG, 0);
+    /* Disable interrupt */
+    mmio_put(AUX_MU_IER_REG, 0);
+    /* Set the data size to 8 bit */
+    mmio_put(AUX_MU_LCR_REG, 3);
+    /* Disable auto flow control */
+    mmio_put(AUX_MU_MCR_REG, 0);
+    /* Set baud rate to 115200 */
+    mmio_put(AUX_MU_BAUD_REG, 270);
+    /* Clear RX/TX FIFO */
+    mmio_put(AUX_MU_IIR_REG, 0xC6);
     /* Enable transmitter and receiver */
     mmio_put(AUX_MU_CNTL_REG, 3);
+    
     /* Clear rx data */
     uart_flush();
 
