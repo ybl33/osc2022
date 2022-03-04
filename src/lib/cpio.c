@@ -114,8 +114,17 @@ int cpio_cat (cpio_header_t *header, char* file_name) {
         if (end_of_cpio) break;
 
         current_header = next_header;
-        if (strcmp(file_name, header_file_name) == 0) {
-            for (int i = 0; i < file_size; i++) uart_putc(data[i]);
+        if (strcmp(file_name, header_file_name) == 0) 
+        {
+            for (int i = 0; i < file_size; i++) 
+            {
+                uart_putc(data[i]);
+                
+                if (data[i] == '\n')
+                {
+                    uart_putc('\r');
+                }
+            }
             return 0;
         }   
     }
