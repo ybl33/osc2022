@@ -39,13 +39,15 @@ void welcome () {
 }
 
 void help () {
-    uart_puts("-------------------------------------\n");
+    uart_puts("-----------------------------------------------\n");
+    uart_puts("* cat     : display the file contents.\n");
     uart_puts("* clear   : clear the screen.\n");
+    uart_puts("* ls      : list the files in cpio archive.\n");
     uart_puts("* help    : print help menu.\n");
     uart_puts("* hello   : print Hello World!\n");
     uart_puts("* sysinfo : print system infomations.\n");
     uart_puts("* reboot  : reboot the device.\n");
-    uart_puts("-------------------------------------");
+    uart_puts("-----------------------------------------------");
     return;
 }
 
@@ -103,6 +105,7 @@ void read_cmd (char *cmd) {
         /* Deal with special operation */
         if (c == '\n') 
         {
+
             // Debug
             // uart_puts("\n  ");
             // uart_puts(cmd);
@@ -116,6 +119,7 @@ void read_cmd (char *cmd) {
         } 
         else if (c == '\b') 
         {
+            /* BACKSPACE */
             if (pos > 0)
             {
                 if (pos < tail)
@@ -135,7 +139,7 @@ void read_cmd (char *cmd) {
                 pos--;
                 tail--;
             }
-        } 
+        }
         else if (c == 0x1B)
         {
             /* ESCAPE */
@@ -231,26 +235,56 @@ void read_cmd (char *cmd) {
 
 void do_cmd (char *cmd) {
 
-    if ( strcmp(cmd, "clear") == 0 ) 
+    char *argv[MAX_ARG_NUM];
+    unsigned int argc = 0;
+    unsigned int cmd_len = strlen(cmd);
+    bool skipping_space = true;
+
+    /* Parsing argv */
+    for (int i = 0; i < cmd_len; i++) 
+    {
+
+        if (cmd[i] != ' ' && skipping_space == 1) 
+        {
+            argv[argc++] = cmd + i;
+            skipping_space = 0;
+        } 
+        else if (cmd[i] == ' ')
+        {
+            if (skipping_space == 0) cmd[i] = '\0';
+            skipping_space = 1;
+        }
+
+    }
+
+    if ( strcmp(argv[0], "clear") == 0 ) 
     {
         clear();
         return;
     }
-    else if ( strcmp(cmd, "help") == 0 ) 
+    else if ( strcmp(argv[0], "help") == 0 ) 
     {
         help();
     }
-    else if ( strcmp(cmd, "hello") == 0 ) 
+    else if ( strcmp(argv[0], "hello") == 0 ) 
     {
         uart_puts("Hello World!");
     }
-    else if ( strcmp(cmd, "sysinfo") == 0 ) 
+    else if ( strcmp(argv[0], "sysinfo") == 0 ) 
     {
         print_system_info();
     }
-    else if ( strcmp(cmd, "reboot") == 0 ) 
+    else if ( strcmp(argv[0], "reboot") == 0 ) 
     {
         reset(1);
+    }
+    else if ( strcmp(argv[0], "ls") == 0 )
+    {
+        cpio_ls((cpio_header_t *)CPIO_BASE);
+    }
+    else if ( strcmp(argv[0], "cat") == 0 )
+    {
+        cpio_cat((cpio_header_t *)CPIO_BASE, argv[1]);
     }
     else 
     {
