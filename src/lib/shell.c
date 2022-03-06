@@ -47,6 +47,7 @@ void help () {
     uart_puts("------------------File system------------------\n");
     uart_puts("* cat     : display the file contents.\n");
     uart_puts("* ls      : list the files in cpio archive.\n");
+    uart_puts("* lsdev   : list the device tree in dtb file.\n");
     uart_puts("---------------------Other---------------------\n");
     uart_puts("* clear   : clear the screen.\n");
     uart_puts("* help    : print help menu.\n");
@@ -88,6 +89,7 @@ void mdump (char *s1, char *s2) {
 
     unsigned long addr;
     unsigned long len;
+    char c;
 
     if (s1[0] != '0' || s1[1] != 'x' || s2[0] != '0' || s2[1] != 'x')
     {
@@ -108,13 +110,24 @@ void mdump (char *s1, char *s2) {
             uart_puts("    0x");
             uart_puth(*(unsigned int *)addr);
             uart_puts("     ");
-            uart_putc(((char *)addr)[0]);
-            uart_putc(' ');
-            uart_putc(((char *)addr)[1]);
-            uart_putc(' ');
-            uart_putc(((char *)addr)[2]);
-            uart_putc(' ');
-            uart_putc(((char *)addr)[3]);
+
+            for (int j = 0; j < 4; j++) {
+
+                c = ((char *)addr)[3 - j];
+
+                if (c >= 32 && c <= 126)
+                {
+                    uart_putc(c);
+                }
+                else
+                {
+                    uart_putc(' ');
+                }
+
+                uart_putc(' ');
+
+            }
+
             uart_puts("\n");
             addr += 4;
         }
@@ -184,9 +197,9 @@ void read_cmd (char *cmd) {
             echo_back(c);
             break;
         } 
-        else if (c == '\b') 
+        else if (c == '\b' || c == 127) 
         {
-            /* BACKSPACE */
+            /* BACKSPACE and DEL */
             if (pos > 0)
             {
                 if (pos < tail)
@@ -200,7 +213,7 @@ void read_cmd (char *cmd) {
                 }
                 else
                 {
-                    echo_back(c);
+                    echo_back('\b');
                     cmd[pos - 1] = '\0';
                 }
                 pos--;

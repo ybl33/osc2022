@@ -12,7 +12,7 @@ void print_level (unsigned int level) {
 
 void parse_dtb (struct fdt_header *fdt) {
 
-    unsigned int *structure_ptr;
+    unsigned int *fdt_structure;
     unsigned int w;
     unsigned int state = 0;
     unsigned int bytes = 0;
@@ -22,14 +22,19 @@ void parse_dtb (struct fdt_header *fdt) {
     char *fdt_strings;
     struct fdt_prop prop;
 
+    if (fdt->magic != FDT_HEADER_MAGIC)
+    {
+        uart_puts("Wrong fdt header magic,\n");
+        return;
+    }
 
-    structure_ptr = (unsigned int *)((char *)fdt + SWAP_UINT32(fdt->off_dt_struct));
-    fdt_strings  = ((char *)fdt) + SWAP_UINT32(fdt->off_dt_strings);
+    fdt_structure = (unsigned int *)((char *)fdt + SWAP_UINT32(fdt->off_dt_struct));
+    fdt_strings   = ((char *)fdt) + SWAP_UINT32(fdt->off_dt_strings);
     uart_puts("( ~ )\n");
 
     while (1) {
         
-        w = *structure_ptr;
+        w = *fdt_structure;
 
         if (w == FDT_BEGIN_NODE)
         {
@@ -57,7 +62,7 @@ void parse_dtb (struct fdt_header *fdt) {
         {
             if (state == FDT_BEGIN_NODE)
             {
-                node_name = (char *)structure_ptr;
+                node_name = (char *)fdt_structure;
                 bytes = strlen(node_name);
                 
                 if (bytes != 0) 
@@ -67,18 +72,18 @@ void parse_dtb (struct fdt_header *fdt) {
                     uart_puts("( ");
                     uart_puts(node_name);
                     uart_puts(" )\n");
-                    structure_ptr = structure_ptr + ((bytes + 3) >> 2) - 1;
+                    fdt_structure = fdt_structure + ((bytes + 3) >> 2) - 1;
                 }
 
             }
             else if (state == FDT_PROP)
             {
-                prop.len     = SWAP_UINT32(*structure_ptr);
-                structure_ptr++;
-                prop.nameoff = SWAP_UINT32(*structure_ptr);
-                structure_ptr++;
+                prop.len     = SWAP_UINT32(*fdt_structure);
+                fdt_structure++;
+                prop.nameoff = SWAP_UINT32(*fdt_structure);
+                fdt_structure++;
 
-                property = (char *)structure_ptr;
+                property = (char *)fdt_structure;
                 bytes    = prop.len;
 
                 if (bytes != 0) 
@@ -94,12 +99,12 @@ void parse_dtb (struct fdt_header *fdt) {
                     }
 
                     uart_puts("\n");
-                    structure_ptr = structure_ptr + ((bytes + 3) >> 2) - 1;
+                    fdt_structure = fdt_structure + ((bytes + 3) >> 2) - 1;
                 }
             }
         }
 
-        structure_ptr++;
+        fdt_structure++;
     }
 
     return;
