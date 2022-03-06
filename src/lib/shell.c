@@ -1,5 +1,7 @@
 #include "shell.h"
 
+extern unsigned long DTB_BASE;
+
 void print_system_info () {
     unsigned int board_revision;
     unsigned int board_serial_msb, board_serial_lsb;
@@ -379,6 +381,10 @@ void do_cmd (char *cmd) {
         {
             mdump(argv[1], argv[2]);
         }
+    }
+    else if ( strcmp(argv[0], "lsdev") == 0 )
+    {
+        parse_dtb((struct fdt_header *)DTB_BASE);
     }
     else 
     {

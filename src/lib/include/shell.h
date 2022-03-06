@@ -5,6 +5,7 @@
 #include "uart.h"
 #include "string.h"
 #include "heap.h"
+#include "dtb.h"
 #define CMD_BUF_SIZE 32
 #define MAX_ARG_NUM  4
 void print_system_info();
