@@ -1,3 +1,5 @@
+__heap_size  = 0x00200000;
+
 SECTIONS
 {
     . = 0x80000;
@@ -28,6 +30,8 @@ SECTIONS
         __bss_end = .;
 
     }
+    
+    __heap_start = .;
 
     _end = .;
 }

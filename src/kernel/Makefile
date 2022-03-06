@@ -4,6 +4,7 @@ LIB_SRC_DIR = ../lib
 
 LIB_SRC = \
 	$(LIB_SRC_DIR)/cpio.c \
+	$(LIB_SRC_DIR)/heap.c \
 	$(LIB_SRC_DIR)/mbox.c \
 	$(LIB_SRC_DIR)/mmio.c \
 	$(LIB_SRC_DIR)/shell.c \

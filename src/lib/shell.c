@@ -39,10 +39,14 @@ void welcome () {
 }
 
 void help () {
-    uart_puts("-----------------------------------------------\n");
+    uart_puts("----------------Memory Allocator---------------\n");
+    uart_puts("* salloc : allocate memory for the string.\n");
+    uart_puts("* mdump  : dump content of memory.\n");
+    uart_puts("------------------File system------------------\n");
     uart_puts("* cat     : display the file contents.\n");
-    uart_puts("* clear   : clear the screen.\n");
     uart_puts("* ls      : list the files in cpio archive.\n");
+    uart_puts("---------------------Other---------------------\n");
+    uart_puts("* clear   : clear the screen.\n");
     uart_puts("* help    : print help menu.\n");
     uart_puts("* hello   : print Hello World!\n");
     uart_puts("* sysinfo : print system infomations.\n");
@@ -53,6 +57,67 @@ void help () {
 
 void clear () {
     uart_putc(0x0C);
+    return;
+}
+
+void salloc (char *s) {
+
+    size_t sz;
+    char *mptr;
+
+    /* Allocate memory for string */
+    sz = strlen(s);
+    mptr = malloc(sz);
+
+    /* Copy string into allocated memory */
+    strcpy(mptr, s);
+
+    /* Print prompt */
+    uart_puts("Allocated address : 0x");
+    uart_puth((unsigned long)mptr & 0xFFFFFFFF);
+    uart_puts("\n");
+    uart_puts("Allocated size    : 0x");
+    uart_puth(sz);
+
+    return;
+}
+
+void mdump (char *s1, char *s2) {
+
+    unsigned long addr;
+    unsigned long len;
+
+    if (s1[0] != '0' || s1[1] != 'x' || s2[0] != '0' || s2[1] != 'x')
+    {
+        uart_puts("Wrong input, address should start with 0x\n");
+    }
+    else
+    {
+        s1   = s1 + 2;
+        s2   = s2 + 2;
+        addr = htoin(s1, strlen(s1));
+        len  = htoin(s2, strlen(s2));
+        len  = (len + 3) >> 2;
+        uart_puts("  Address    Content (Hex)    ASCII\n");
+        for (int i = 0; i < len; i++)
+        {
+            uart_puts("0x");
+            uart_puth(addr);
+            uart_puts("    0x");
+            uart_puth(*(unsigned int *)addr);
+            uart_puts("     ");
+            uart_putc(((char *)addr)[0]);
+            uart_putc(' ');
+            uart_putc(((char *)addr)[1]);
+            uart_putc(' ');
+            uart_putc(((char *)addr)[2]);
+            uart_putc(' ');
+            uart_putc(((char *)addr)[3]);
+            uart_puts("\n");
+            addr += 4;
+        }
+    }
+
     return;
 }
 
@@ -284,7 +349,36 @@ void do_cmd (char *cmd) {
     }
     else if ( strcmp(argv[0], "cat") == 0 )
     {
-        cpio_cat((cpio_header_t *)CPIO_BASE, argv[1]);
+        if (argc < 2) 
+        {
+            uart_puts("Usage: cat <path to file>\n");
+        }
+        else
+        {
+            cpio_cat((cpio_header_t *)CPIO_BASE, argv[1]);
+        }
+    }
+    else if ( strcmp(argv[0], "salloc") == 0 )
+    {
+        if (argc < 2) 
+        {
+            uart_puts("Usage: salloc <string>\n");
+        }
+        else
+        {
+            salloc(argv[1]);
+        }
+    }
+    else if ( strcmp(argv[0], "mdump") == 0 )
+    {
+        if (argc < 3) 
+        {
+            uart_puts("Usage: mdump <address> <length>\n");
+        }
+        else
+        {
+            mdump(argv[1], argv[2]);
+        }
     }
     else 
     {

@@ -31,7 +31,7 @@ unsigned long htoin (char *s, unsigned int n) {
         }
         else if (*s >= 'A' && *s <= 'F')
         {
-            v = v + 10 + (*s - 'F');
+            v = v + 10 + (*s - 'A');
         }
         else
         {
