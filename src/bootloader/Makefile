@@ -55,6 +55,8 @@ PROJ = bootloader
 OUT_ELF = ./$(PROJ).elf
 OUT_IMG = ./$(PROJ).img
 LINKER_FILE = linker.ld
+CPIO_FILE = ../initramfs/initramfs.cpio
+DTB_FILE  = ../devicetree/bcm2710-rpi-3-b-plus.dtb
 
 CCFLAGS = -Wall -O2 -ffreestanding -nostdinc -nostdlib -nostartfiles
 LDFLAGS = -T$(LINKER_FILE)
@@ -109,7 +111,7 @@ $(BUILD_DIRECTORIES):
 
 # QEMU
 qemu: all
-	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -serial null -serial pty
+	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -display none -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial pty
 
 clean:
 	rm -rf *.elf

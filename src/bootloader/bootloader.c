@@ -1,8 +1,15 @@
 #include "uart.h"
 
 int main () {
-    char *kernel_p = (char *)0x80000;
+
+    // Backup DTB base address
+    register unsigned long x0 asm ("x0");
+
+    unsigned long kernel_base = 0x80000;
     unsigned int kernel_size = 0;
+    unsigned long dtb_base = x0;
+    char* kernel_ptr = (char *)kernel_base;
+
     uart_init();
     uart_putc(0x0C);
     uart_puts("[Uartboot] Waiting for kernel image.\n");
@@ -17,12 +24,11 @@ int main () {
     uart_puts(" bytes)\n");
 
     for (int i = 0; i < kernel_size; i++) {
-        kernel_p[i] = uart_get();
+        kernel_ptr[i] = uart_get();
     }
 
-    void (*kernel)(void) = (void *)kernel_p;
+    asm volatile ("mov x0, %0\n\t" : "=r" (dtb_base));
+    asm volatile ("br %0\n\t" : "=r" (kernel_base));
 
-    kernel();
-    
     return 0;
 }
