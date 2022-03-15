@@ -412,10 +412,11 @@ void do_cmd (char *cmd) {
 
 void shell_start () {
 
+    char cmd[CMD_BUF_SIZE];
+
+    cpio_init();
     clear();
     welcome();
-    fdt_traverse((struct fdt_header *)DTB_BASE, initramfs_callback);
-    char cmd[CMD_BUF_SIZE];
 
     while (1) {
         read_cmd(cmd);

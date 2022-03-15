@@ -2,7 +2,7 @@
 static unsigned int level;
 static void *fdt_structure;
 static void *fdt_strings;
-unsigned long CPIO_BASE;
+extern unsigned long CPIO_BASE;
 
 char* dtb_align (char* v) {
     unsigned long lower_bits = (unsigned long)v & 0x3;

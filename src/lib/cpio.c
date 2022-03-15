@@ -1,5 +1,8 @@
 #include "cpio.h"
 
+extern unsigned long DTB_BASE;
+unsigned long CPIO_BASE;
+
 unsigned long cpio_align (unsigned long v) {
     unsigned long lower_bits = v & 0x3;
 
@@ -130,4 +133,11 @@ int cpio_cat (cpio_header_t *header, char* file_name) {
     }
 
     return -1;
+}
+
+void cpio_init () {
+
+    fdt_traverse((struct fdt_header *)DTB_BASE, initramfs_callback);
+
+    return;
 }
