@@ -89,12 +89,8 @@ void parse_dtb (struct fdt_header *fdt) {
                 uart_puts(node_name);
                 uart_puts(" )\n");
             }
-            else
-            {
-                fdt_structure += 4;
-            }
 
-            fdt_structure = dtb_align(fdt_structure + bytes);
+            fdt_structure = dtb_align(fdt_structure + bytes + 1);
         } 
         else if (state == FDT_PROP)
         {
