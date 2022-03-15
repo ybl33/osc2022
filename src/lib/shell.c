@@ -1,6 +1,7 @@
 #include "shell.h"
 
 extern unsigned long DTB_BASE;
+extern unsigned long CPIO_BASE;
 
 void print_system_info () {
     unsigned int board_revision;
@@ -180,7 +181,7 @@ void read_cmd (char *cmd) {
 
     do {
 
-        c = uart_get();
+        c = uart_getc();
         cmd[tail] = '\0';
         /* Deal with special operation */
         if (c == '\n') 
@@ -223,11 +224,11 @@ void read_cmd (char *cmd) {
         else if (c == 0x1B)
         {
             /* ESCAPE */
-            c = uart_get();
+            c = uart_getc();
 
             if (c == 0x5B) 
             {
-                c = uart_get();
+                c = uart_getc();
                 /* Deal with up, down, left, right */
                 if (c == 0x41) 
                 {
@@ -397,7 +398,7 @@ void do_cmd (char *cmd) {
     }
     else if ( strcmp(argv[0], "lsdev") == 0 )
     {
-        parse_dtb((struct fdt_header *)DTB_BASE);
+        fdt_traverse((struct fdt_header *)DTB_BASE, lsdev_callback);
     }
     else 
     {
@@ -413,6 +414,7 @@ void shell_start () {
 
     clear();
     welcome();
+    fdt_traverse((struct fdt_header *)DTB_BASE, initramfs_callback);
     char cmd[CMD_BUF_SIZE];
 
     while (1) {

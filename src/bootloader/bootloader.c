@@ -2,14 +2,15 @@
 
 int main () {
 
-    // Backup DTB base address
-    register unsigned long x0 asm ("x0");
-
-    unsigned long kernel_base = 0x80000;
     unsigned int kernel_size = 0;
-    unsigned long dtb_base = x0;
+    unsigned long kernel_base = 0x80000;
+    volatile unsigned long dtb_base;
     char* kernel_ptr = (char *)kernel_base;
 
+    // Backup DTB base address
+    asm volatile ("mov %0, x0" : "=r" (dtb_base));
+
+    // Read kernel
     uart_init();
     uart_putc(0x0C);
     uart_puts("[Uartboot] Waiting for kernel image.\n");
@@ -27,8 +28,9 @@ int main () {
         kernel_ptr[i] = uart_get();
     }
 
-    asm volatile ("mov x0, %0\n\t" : "=r" (dtb_base));
-    asm volatile ("br %0\n\t" : "=r" (kernel_base));
+    asm volatile ("mov x1, %0" : : "r" (kernel_base));
+    asm volatile ("mov x0, %0" : : "r" (dtb_base));
+    asm volatile ("br x1");
 
     return 0;
 }

@@ -1,5 +1,6 @@
 #ifndef __DTB__H__
 #define __DTB__H__
+#include "cpio.h"
 #include "stddef.h"
 #include "string.h"
 #include "uart.h"
@@ -31,5 +32,7 @@ struct fdt_prop {
 };
 
 void print_level(unsigned int level);
-void parse_dtb(struct fdt_header *fdt);
+void fdt_traverse(struct fdt_header *fdt, void (*callback) ());
+void lsdev_callback(void *fdt);
+void initramfs_callback(void *fdt);
 #endif

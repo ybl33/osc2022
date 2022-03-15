@@ -24,9 +24,6 @@ typedef struct cpio_header_t {
 #define CPIO_HEADER_MAGIC "070701"
 #define CPIO_FOOTER_MAGIC "TRAILER!!!"
 #define CPIO_HEADER_SIZE  (sizeof(cpio_header_t))
-/* QEMU loads the cpio archive file to 0x8000000 */
-#define CPIO_BASE         (0x8000000)
-// #define CPIO_BASE         (0x20000000)
 
 unsigned long cpio_align(unsigned long v);
 unsigned long htoin(char *s, unsigned int n);

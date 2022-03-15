@@ -56,6 +56,14 @@ char uart_get () {
     /* Wait for data ready */
     while ((mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_DATA_READY) == 0) asm volatile ("nop");
     c = mmio_get(AUX_MU_IO_REG);
+
+    return c;
+}
+
+char uart_getc () {
+    char c;
+    
+    c = uart_get();
     if (c == '\r') c = '\n';
 
     return c;
