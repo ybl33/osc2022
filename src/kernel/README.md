@@ -1,7 +1,4 @@
-# Reminder
-You need to change CPIO_BASE (at src/lib/include/cpio.h) to correct address.
-
+# Simulate with qemu
 ```
-QEMU -> 0x8000000
-Rasp -> according to config.txt
+make qemu
 ```
