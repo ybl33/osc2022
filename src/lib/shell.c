@@ -2,6 +2,7 @@
 
 extern unsigned long DTB_BASE;
 extern unsigned long CPIO_BASE;
+extern void from_EL1_to_EL0(unsigned long prog, unsigned long sp);
 
 void print_system_info () {
     unsigned int board_revision;
@@ -47,6 +48,7 @@ void help () {
     uart_puts("* mdump  : dump content of memory.\n");
     uart_puts("------------------File system------------------\n");
     uart_puts("* cat     : display the file contents.\n");
+    uart_puts("* exec    : load and execute user program.\n");
     uart_puts("* ls      : list the files in cpio archive.\n");
     uart_puts("* lsdev   : list the device tree in dtb file.\n");
     uart_puts("---------------------Other---------------------\n");
@@ -133,6 +135,49 @@ void mdump (char *s1, char *s2) {
             addr += 4;
         }
     }
+
+    return;
+}
+
+void exec (cpio_header_t *header, char *file_name)
+{
+    void (*prog)();
+    unsigned int current_el;
+
+    prog = cpio_load(header, file_name);
+
+    if (prog == 0)
+    {
+        uart_puts("User program not found!\n");
+        return;
+    }
+
+    // Get current EL
+    asm volatile ("mrs %0, CurrentEL" : "=r" (current_el));
+    current_el = current_el >> 2;
+
+    char *stack_top = malloc(0x2000);
+    stack_top = stack_top + 0x2000;
+
+    // Print prompt
+    uart_puts("Current EL: 0x");
+    uart_puth(current_el);
+    uart_putc('\n');
+    uart_puts("User program name: ");
+    uart_putc('"');
+    uart_puts(file_name);
+    uart_putc('"');
+    uart_puts(" (at 0x");
+    uart_puth((unsigned long) prog);
+    uart_puts(")");
+    uart_putc('\n');
+    uart_puts("User program stack top: 0x");
+    uart_puth((unsigned long) stack_top);
+    uart_putc('\n');
+    uart_puts("-----------------Entering user program-----------------\n");
+
+    enable_timer_interrupt();
+    from_EL1_to_EL0((unsigned long)prog, (unsigned long)stack_top);
 
     return;
 }
@@ -399,6 +444,17 @@ void do_cmd (char *cmd) {
     else if ( strcmp(argv[0], "lsdev") == 0 )
     {
         fdt_traverse((struct fdt_header *)DTB_BASE, lsdev_callback);
+    }
+    else if ( strcmp(argv[0], "exec") == 0 )
+    {
+        if (argc < 2) 
+        {
+            uart_puts("Usage: exec <file name>\n");
+        }
+        else
+        {
+            exec((cpio_header_t *)CPIO_BASE, argv[1]);
+        }
     }
     else 
     {

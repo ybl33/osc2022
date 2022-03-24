@@ -12,6 +12,7 @@ LIB_SRC = \
 	$(LIB_SRC_DIR)/string.c \
 	$(LIB_SRC_DIR)/uart.c \
 	$(LIB_SRC_DIR)/utils.c \
+	$(LIB_SRC_DIR)/exception.c \
 
 LIB_INCLUDES = \
 	-I $(LIB_SRC_DIR)/include \
@@ -26,7 +27,7 @@ APP_SRC = \
 	$(APP_SRC_DIR)/kernel.c \
 
 APP_ASM = \
-	$(APP_SRC_DIR)/boot.S \
+	$(APP_SRC_DIR)/boot.s \
 
 APP_INCLUDES = \
 	-I ./ \
@@ -34,7 +35,7 @@ APP_INCLUDES = \
 
 APP_BUILD_DIR = $(BUILD_DIR)/app
 APP_OBJS := $(patsubst %.c,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_SRC)))
-APP_OBJS += $(patsubst %.S,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
+APP_OBJS += $(patsubst %.s,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
 
 VPATH += \
 	$(LIB_SRC_DIR) \
@@ -81,7 +82,7 @@ $(APP_BUILD_DIR)/%.o : %.c
 	$(CC) $(CCFLAGS) $(APP_INCLUDES) -o $@ -c $<
 	@echo "Finished Building: $<"
 
-$(APP_BUILD_DIR)/%.o : %.S
+$(APP_BUILD_DIR)/%.o : %.s
 	@echo "[APP Objects] : $@ -----------------------------------------"
 	@echo "Building: $<"
 	$(CC) $(ASMFLAGS) $(APP_INCLUDES) -o $@ -c $<
@@ -119,6 +120,9 @@ $(BUILD_DIRECTORIES):
 # QEMU
 qemu: all
 	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -display none -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio
+
+debug: all
+	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -display none -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio -S -s
 
 clean:
 	rm -rf *.elf

@@ -3,6 +3,7 @@
 #include "dtb.h"
 #include "uart.h"
 #include "string.h"
+#include "heap.h"
 
 /* CPIO new ASCII header */
 typedef struct cpio_header_t {
@@ -31,6 +32,7 @@ unsigned long htoin(char *s, unsigned int n);
 int cpio_header_parser(cpio_header_t *header, char** file_name, unsigned long* file_size, char** data, cpio_header_t **next_header);
 int cpio_ls(cpio_header_t *header);
 int cpio_cat(cpio_header_t *header, char* file_name);
+void *cpio_load(cpio_header_t *header, char *file_name);
 void cpio_init();
 
 #endif

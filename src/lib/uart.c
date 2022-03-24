@@ -92,6 +92,37 @@ void uart_puth (unsigned int d) {
     return;
 }
 
+void uart_putu (unsigned int d) {
+
+    char c;
+    bool leading_zero = true;
+    unsigned int div = 1000000000;
+    unsigned int digit;
+
+    while (div)
+    {
+
+        digit = d / div;
+
+        if (digit) 
+        {
+            leading_zero = false;
+            d = d - digit * div;
+        }
+
+        if (!leading_zero)
+        {
+            c = '0' + digit;
+            uart_putc(c);
+        }
+
+        div   = div / 10;
+
+    }
+
+    return;
+}
+
 void uart_puts (char *s) {
 
     while (*s != '\0') {

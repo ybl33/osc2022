@@ -19,7 +19,7 @@ APP_SRC = \
 	$(APP_SRC_DIR)/bootloader.c \
 
 APP_ASM = \
-	$(APP_SRC_DIR)/boot.S \
+	$(APP_SRC_DIR)/boot.s \
 
 APP_INCLUDES = \
 	-I ./ \
@@ -27,7 +27,7 @@ APP_INCLUDES = \
 
 APP_BUILD_DIR = $(BUILD_DIR)/app
 APP_OBJS := $(patsubst %.c,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_SRC)))
-APP_OBJS += $(patsubst %.S,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
+APP_OBJS += $(patsubst %.s,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
 
 VPATH += \
 	$(LIB_SRC_DIR) \
@@ -74,7 +74,7 @@ $(APP_BUILD_DIR)/%.o : %.c
 	$(CC) $(CCFLAGS) $(APP_INCLUDES) -o $@ -c $<
 	@echo "Finished Building: $<"
 
-$(APP_BUILD_DIR)/%.o : %.S
+$(APP_BUILD_DIR)/%.o : %.s
 	@echo "[APP Objects] : $@ -----------------------------------------"
 	@echo "Building: $<"
 	$(CC) $(ASMFLAGS) $(APP_INCLUDES) -o $@ -c $<
