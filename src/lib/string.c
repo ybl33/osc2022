@@ -202,3 +202,56 @@ char *strpullout (char *s, int pos) {
     
     return s;
 }
+
+unsigned long htoin (char *s, unsigned int n) {
+
+    unsigned long v = 0;
+
+    while (n > 0 && *s != '\0' && *s != '\n')
+    {
+        v = v << 4;
+
+        if (*s >= '0' && *s <= '9') 
+        {
+            v = v + (*s - '0');
+        }
+        else if (*s >= 'a' && *s <= 'f')
+        {
+            v = v + 10 + (*s - 'a');
+        }
+        else if (*s >= 'A' && *s <= 'F')
+        {
+            v = v + 10 + (*s - 'A');
+        }
+        else
+        {
+            return -1;
+        }
+        s++; n--;
+    }
+
+    return v;
+}
+
+unsigned long atou (char *s) {
+
+    unsigned long v = 0;
+
+    while (*s != '\0' && *s != '\n')
+    {
+        v = v * 10;
+
+        if (*s >= '0' && *s <= '9') 
+        {
+            v = v + (*s - '0');
+        }
+        else
+        {
+            return -1;
+        }
+        
+        s++;
+    }
+
+    return v;
+}

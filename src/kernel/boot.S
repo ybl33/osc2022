@@ -138,7 +138,7 @@ exception_vector_table:
     b unsupported 
     .align 7
 
-    b syn 
+    b hang 
     .align 7
     b irq 
     .align 7
@@ -171,7 +171,7 @@ from_EL2_to_EL1:
     mov     x1, (1 << 31)
     msr     hcr_el2, x1
     // set spsr as (EL1h, and irq enabled) 
-    mov     x2, 0x3c5
+    mov     x2, 0x345
     msr     spsr_el2, x2
     // set return address with link register
     msr     elr_el2, lr

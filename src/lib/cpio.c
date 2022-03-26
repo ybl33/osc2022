@@ -16,36 +16,6 @@ unsigned long cpio_align (unsigned long v) {
     return v;
 }
 
-unsigned long htoin (char *s, unsigned int n) {
-
-    unsigned long v = 0;
-
-    while (n > 0 && *s != '\0' && *s != '\n')
-    {
-        v = v << 4;
-
-        if (*s >= '0' && *s <= '9') 
-        {
-            v = v + (*s - '0');
-        }
-        else if (*s >= 'a' && *s <= 'f')
-        {
-            v = v + 10 + (*s - 'a');
-        }
-        else if (*s >= 'A' && *s <= 'F')
-        {
-            v = v + 10 + (*s - 'A');
-        }
-        else
-        {
-            return -1;
-        }
-        s++; n--;
-    }
-
-    return v;
-}
-
 int cpio_header_parser (cpio_header_t *header, char** file_name, unsigned long* file_size, char** data, cpio_header_t **next_header) {
     
     unsigned long file_name_size;

@@ -2,7 +2,7 @@
 #define __EXCEPTION__H__
 #include "mmio.h"
 #include "uart.h"
-#include "utils.h"
+#include "timer.h"
 
 #define CORE_0_TIMER_INT_CTL (0x40000040)
 #define CORE_0_IRQ_SOURCE    (0x40000060)
@@ -26,7 +26,6 @@
 void set_interrupt(bool enable);
 void set_timer_interrupt(bool enable);
 void set_aux_int(bool enable);
-void set_timeout(unsigned int seconds);
 void syn_handler();
 void irq_handler();
 void undefined_handler();

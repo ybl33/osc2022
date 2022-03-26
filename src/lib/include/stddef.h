@@ -3,6 +3,6 @@
 
 typedef unsigned long size_t;
 typedef enum { false, true } bool;
-#define NULL 0
+#define NULL (void *)(0)
 
 #endif

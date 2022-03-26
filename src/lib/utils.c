@@ -85,28 +85,3 @@ void cancel_reset() {
     mmio_put(PM_WDOG, PM_PASSWORD | 0);  // number of watchdog tick
     return;
 }
-
-unsigned long time () {
-
-    unsigned long cntpct_el0;
-    unsigned long cntfrq_el0;
-    unsigned long time_in_sec;
-
-    asm volatile("mrs %0,  cntpct_el0" : "=r"(cntpct_el0) : );
-    asm volatile("mrs %0,  cntfrq_el0" : "=r"(cntfrq_el0) : );
-
-    time_in_sec = cntpct_el0 / cntfrq_el0;
-
-    return time_in_sec;
-}
-
-void print_time () {
-
-    unsigned long c_time = time();
-
-    uart_puts("[Current time] ");
-    uart_putu(c_time);
-    uart_puts("secs\n");
-
-    return;
-}

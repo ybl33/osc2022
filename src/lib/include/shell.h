@@ -7,6 +7,7 @@
 #include "heap.h"
 #include "dtb.h"
 #include "exception.h"
+#include "timer.h"
 #define CMD_BUF_SIZE 32
 #define MAX_ARG_NUM  4
 void print_system_info();

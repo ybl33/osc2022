@@ -12,4 +12,6 @@ int strcmp(char *s1, char*s2);
 int strncmp(char *s1, char *s2, size_t n);
 char *strinsert(char *s, char c, int pos);
 char *strpullout(char *s, int pos);
+unsigned long htoin(char *s, unsigned int n);
+unsigned long atou(char *s);
 #endif

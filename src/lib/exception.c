@@ -33,6 +33,10 @@ void set_timer_interrupt (bool enable) {
     {
         asm volatile ("mov x0, 0");
         asm volatile ("msr cntp_ctl_el0, x0");  
+        // mask timer interrupt
+        asm volatile ("mov x0, 0");
+        asm volatile ("ldr x1, =0x40000040");
+        asm volatile ("str w0, [x1]");
     }
 
     return;
@@ -49,16 +53,6 @@ void set_aux_int (bool enable) {
     {
         mmio_put(IRQs_1_DISABLE, IRQ_1_AUX_INT);
     }
-
-    return;
-}
-
-void set_timeout (unsigned int seconds) {
-
-    // Set next expire time
-    asm volatile ("mrs x2, cntfrq_el0");
-    asm volatile ("mul x1, x2, %0" :: "r"(seconds));
-    asm volatile ("msr cntp_tval_el0, x1");
 
     return;
 }
@@ -122,7 +116,6 @@ void uart_irq_handler () {
 
     unsigned int is_rx_irq;
     unsigned int is_tx_irq;
-    char c;
 
     set_aux_int(false);
 
@@ -131,32 +124,21 @@ void uart_irq_handler () {
 
     if (is_rx_irq)
     {
-        c = uart_get();
-        read_buffer[read_head] = c;
+        read_buffer[read_head] = uart_get();
         read_head = (read_head + 1) & (READ_BUF_SIZE - 1);
-
-
-        asyn_uart_put(c);
-        uart_puts("[RX IRQ] Received: ");
-        uart_put(c);
-        uart_put('\n');
     }
     else if (is_tx_irq)
     {
 
-        c = write_buffer[write_tail];
-        write_tail = (write_tail + 1) & (WRITE_BUF_SIZE - 1);
-
-        uart_puts("[TX IRQ] Send: ");
-        uart_put(c);
-        uart_puts("\n------------------\n");
-
-        /* If write done, disable TX interrupt */
-        if (write_head == write_tail)
+        while (write_head != write_tail)
         {
-            set_uart_tx_int(false);
+            uart_put(write_buffer[write_tail]);
+            write_tail = (write_tail + 1) & (WRITE_BUF_SIZE - 1);
         }
 
+        /* If write done, disable TX interrupt */
+        set_uart_tx_int(false);
+        
     }
     
     set_aux_int(true);
@@ -166,18 +148,40 @@ void uart_irq_handler () {
 
 void timer_irq_handler () {
 
-    unsigned long c_time;
+    unsigned long c_time, after;
 
-    // Set next expire time
-    set_timeout(3);
-
-    // Get current time
     c_time = time();
 
-    // Print prompt
-    uart_puts("[IRQ Interrupt] HIHI I'm IRQ handler ^u^, current time is ");
+    /* Print prompt */
+    uart_puts("\n\n");
+    uart_puts("[ ");
     uart_putu(c_time);
-    uart_puts(".\n");
+    uart_puts(" secs ] Timer irq occur, execute pre-scheduled task.");
+    uart_puts("\n\n");
+
+    /* Do callback */
+    timer_task_list->callback(timer_task_list->data);
+    timer_task_list = timer_task_list->next_task; // TO DO: free the memory space
+
+    /* Update timeout or disable timer interrupt */
+    if (timer_task_list == NULL)
+    {
+        /* No task to do, disable timer interrupt */
+        set_timer_interrupt(false);
+    }
+    else
+    {
+        if (timer_task_list->execute_time > c_time)
+        {
+            after = timer_task_list->execute_time - c_time;
+        }
+        else
+        {
+            after = 0;
+        }
+
+        set_timeout(after);
+    }
 
     return;
 }

@@ -17,8 +17,8 @@ void uart_putu(unsigned int d);
 void uart_puts(char *s);
 
 /* Asynchronous Read and Write */
-#define READ_BUF_SIZE          (32)
-#define WRITE_BUF_SIZE         (32)
+#define READ_BUF_SIZE          (1024)
+#define WRITE_BUF_SIZE         (1024)
 extern char read_buffer[READ_BUF_SIZE];
 extern char write_buffer[WRITE_BUF_SIZE];
 
@@ -31,6 +31,10 @@ void asyn_uart_init();
 void set_uart_rx_int(bool enable);
 void set_uart_tx_int(bool enable);
 char asyn_uart_get();
+char asyn_uart_getc();
 void asyn_uart_put(char c);
+void asyn_uart_puth(unsigned int d);
+void asyn_uart_putu(unsigned int d);
+void asyn_uart_puts(char *s);
 
 #endif

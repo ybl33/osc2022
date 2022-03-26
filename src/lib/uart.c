@@ -170,10 +170,6 @@ void asyn_uart_init () {
     read_tail  = 0;
     write_tail = 0;
 
-    /* Clear buffer */
-    for (int i = 0; i < READ_BUF_SIZE; i++) read_buffer[i] = 0;
-    for (int i = 0; i < WRITE_BUF_SIZE; i++) write_buffer[i] = 0;
-
     return;
 }
 
@@ -219,10 +215,25 @@ char asyn_uart_get () {
 
     char c;
 
-    while (read_head == read_tail) /* Wait for data */ ;
+    /* Wait for data */
+    while (read_head == read_tail) asm volatile ("nop") ;
 
     c = read_buffer[read_tail];
     read_tail = (read_tail + 1) & (READ_BUF_SIZE - 1);
+
+    return c;
+}
+
+char asyn_uart_getc () {
+
+    char c;
+    
+    c = asyn_uart_get();
+    
+    if (c == '\r') 
+    {
+        c = '\n';
+    }
 
     return c;
 }
@@ -235,5 +246,76 @@ void asyn_uart_put (char c) {
     /* Enable TX interrupt */
     set_uart_tx_int(true);
 
+    return;
+}
+
+void asyn_uart_puth (unsigned int d) {
+    unsigned int c;
+
+    for (int i = 28; i >= 0; i -= 4) {
+        /* Highest 4 bits */
+        c = (d >> i) & 0xF;
+        /* Translate to hex */
+        c = (c > 9) ? (0x37 + c) : (0x30 + c) ;
+        asyn_uart_put(c);
+    }
+
+    return;
+}
+
+void asyn_uart_putu (unsigned int d) {
+
+    char c;
+    bool leading_zero = true;
+    unsigned int div = 1000000000;
+    unsigned int digit;
+
+    if (d == 0)
+    {
+        asyn_uart_put('0');
+        return;
+    }
+
+    while (div)
+    {
+
+        digit = d / div;
+
+        if (digit) 
+        {
+            leading_zero = false;
+            d = d - digit * div;
+        }
+
+        if (!leading_zero)
+        {
+            c = '0' + digit;
+            asyn_uart_put(c);
+        }
+
+        div   = div / 10;
+
+    }
+
+    return;
+}
+
+void asyn_uart_puts (char *s) {
+
+    while (*s != '\0') {
+
+        if (*s == '\n') 
+        {
+            write_buffer[write_head] = '\r';
+            write_head = (write_head + 1) & (WRITE_BUF_SIZE - 1);
+        }
+
+        write_buffer[write_head] = *s++;
+        write_head = (write_head + 1) & (WRITE_BUF_SIZE - 1);
+    }
+
+    /* Enable TX interrupt */
+    set_uart_tx_int(true);
+    
     return;
 }
