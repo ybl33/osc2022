@@ -121,11 +121,11 @@ int cpio_cat (cpio_header_t *header, char* file_name) {
         {
             for (int i = 0; i < file_size; i++) 
             {
-                uart_putc(data[i]);
+                uart_put(data[i]);
                 
                 if (data[i] == '\n')
                 {
-                    uart_putc('\r');
+                    uart_put('\r');
                 }
             }
             return 0;

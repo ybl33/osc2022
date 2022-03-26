@@ -21,6 +21,5 @@ void get_board_serial(unsigned int* msb, unsigned int* lsb);
 void get_memory_info(unsigned int* mem_base, unsigned int* mem_size);
 void reset(int tick);
 void cancel_reset();
-void enable_timer_interrupt();
 unsigned long time();
 #endif

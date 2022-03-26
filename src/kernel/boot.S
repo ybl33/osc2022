@@ -6,17 +6,17 @@
 _start:
     // read cpu id, stop slave cores
     mrs     x1, mpidr_el1
-    and     x1, x1, #3
+    and     x1, x1, 3
     // cpu id != 0, stop
     cbnz    x1, hang
 
 get_current_EL:
     // current exception level is in CurrentEL[3:2]
     mrs     x1, CurrentEL
-    and     x1, x1, #12
-    lsr     x1, x1, #2
+    and     x1, x1, 12
+    lsr     x1, x1, 2
     // check whether runing at EL2
-    cmp     x1, #2
+    cmp     x1, 2
     bne     hang
     // switch from EL2 to EL1
     bl      from_EL2_to_EL1
@@ -36,8 +36,8 @@ clear_bss:
     ldr     x2, =__bss_size
 clear_bss_loop:
     cbz     x2, run_main
-    str     xzr, [x1], #8
-    sub     x2, x2, #1
+    str     xzr, [x1], 8
+    sub     x2, x2, 1
     cbnz    x2, clear_bss_loop
 
 run_main:
@@ -53,7 +53,8 @@ hang:
 // Execption
 // save general registers to stack
 .macro save_all
-    sub     sp, sp, 32 * 8
+    sub     sp, sp, 16 * 17
+    // saving general registers
     stp     x0, x1, [sp ,16 * 0]
     stp     x2, x3, [sp ,16 * 1]
     stp     x4, x5, [sp ,16 * 2]
@@ -69,11 +70,17 @@ hang:
     stp     x24, x25, [sp ,16 * 12]
     stp     x26, x27, [sp ,16 * 13]
     stp     x28, x29, [sp ,16 * 14]
-    str     x30, [sp, 16 * 15]
+    // saving el registers
+    mrs     x28, SPSR_EL1
+    mrs     x29, ELR_EL1
+    stp     x28, x29, [sp, 16 * 15]
+    mrs     x28, SP_EL0
+    stp     x28, x30, [sp, 16 * 16]
 .endm
 
 // load general registers from stack
 .macro load_all
+    // load general registers
     ldp     x0, x1, [sp ,16 * 0]
     ldp     x2, x3, [sp ,16 * 1]
     ldp     x4, x5, [sp ,16 * 2]
@@ -89,8 +96,13 @@ hang:
     ldp     x24, x25, [sp ,16 * 12]
     ldp     x26, x27, [sp ,16 * 13]
     ldp     x28, x29, [sp ,16 * 14]
-    ldr     x30, [sp, 16 * 15]
-    add     sp, sp, 32 * 8
+    // load el registers
+    ldp     x28, x29, [sp, 16 * 15]
+    msr     SPSR_EL1, x28
+    msr     ELR_EL1, x29
+    ldp     x28, x30, [sp, 16 * 16]
+    msr     SP_EL0, x28
+    add     sp, sp, 16 * 17
 .endm
 
 syn:
@@ -105,7 +117,7 @@ irq:
     load_all
     eret
 
-not_supported:
+unsupported:
     save_all
     bl undefined_handler
     load_all
@@ -116,41 +128,41 @@ not_supported:
 .global exception_vector_table
 exception_vector_table:
     // branch to a handler function.
-    b not_supported 
+    b unsupported 
     // entry size is 0x80, .align will pad 0
     .align 7 
-    b not_supported 
+    b unsupported 
     .align 7
-    b not_supported 
+    b unsupported 
     .align 7
-    b not_supported 
-    .align 7
-
-    b not_supported 
-    .align 7
-    b not_supported 
-    .align 7
-    b not_supported 
-    .align 7
-    b not_supported 
+    b unsupported 
     .align 7
 
     b syn 
     .align 7
     b irq 
     .align 7
-    b not_supported 
+    b unsupported 
     .align 7
-    b not_supported 
+    b unsupported 
     .align 7
 
-    b not_supported 
+    b syn 
     .align 7
-    b not_supported 
+    b irq 
     .align 7
-    b not_supported 
+    b unsupported 
     .align 7
-    b not_supported 
+    b unsupported 
+    .align 7
+
+    b unsupported 
+    .align 7
+    b unsupported 
+    .align 7
+    b unsupported 
+    .align 7
+    b unsupported 
     .align 7
 
 .global from_EL2_to_EL1
@@ -158,8 +170,8 @@ from_EL2_to_EL1:
     // set EL1 as AArch64
     mov     x1, (1 << 31)
     msr     hcr_el2, x1
-    // set spsr as (EL1h, and all interrupt disabled) 
-    mov     x2, #0x3c5
+    // set spsr as (EL1h, and irq enabled) 
+    mov     x2, 0x3c5
     msr     spsr_el2, x2
     // set return address with link register
     msr     elr_el2, lr
@@ -169,6 +181,6 @@ from_EL2_to_EL1:
 from_EL1_to_EL0:
     msr     elr_el1, x0
     msr     sp_el0, x1
-    mov     x1, #0x340
+    mov     x1, 0x340
     msr     spsr_el1, x1
     eret

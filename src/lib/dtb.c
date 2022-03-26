@@ -132,9 +132,9 @@ void lsdev_callback (void *fdt) {
         for (int i = 0; i < bytes; i++)
         {
             if (property[i] >= 32 && property[i] <= 126)
-                uart_putc(property[i]);
+                uart_put(property[i]);
             else
-                uart_putc('_');
+                uart_put('_');
         }
 
         uart_puts("\n");                

@@ -44,25 +44,25 @@ void welcome () {
 
 void help () {
     uart_puts("----------------Memory Allocator---------------\n");
-    uart_puts("* salloc : allocate memory for the string.\n");
-    uart_puts("* mdump  : dump content of memory.\n");
+    uart_puts("* salloc    : allocate memory for the string.\n");
+    uart_puts("* mdump     : dump content of memory.\n");
     uart_puts("------------------File system------------------\n");
-    uart_puts("* cat     : display the file contents.\n");
-    uart_puts("* exec    : load and execute user program.\n");
-    uart_puts("* ls      : list the files in cpio archive.\n");
-    uart_puts("* lsdev   : list the device tree in dtb file.\n");
+    uart_puts("* cat       : display the file contents.\n");
+    uart_puts("* exec      : load and execute user program.\n");
+    uart_puts("* ls        : list the files in cpio archive.\n");
+    uart_puts("* lsdev     : list the device tree in dtb file.\n");
     uart_puts("---------------------Other---------------------\n");
-    uart_puts("* clear   : clear the screen.\n");
-    uart_puts("* help    : print help menu.\n");
-    uart_puts("* hello   : print Hello World!\n");
-    uart_puts("* sysinfo : print system infomations.\n");
-    uart_puts("* reboot  : reboot the device.\n");
+    uart_puts("* clear     : clear the screen.\n");
+    uart_puts("* help      : print help menu.\n");
+    uart_puts("* hello     : print Hello World!\n");
+    uart_puts("* sysinfo   : print system infomations.\n");
+    uart_puts("* reboot    : reboot the device.\n");
     uart_puts("-----------------------------------------------");
     return;
 }
 
 void clear () {
-    uart_putc(0x0C);
+    uart_put(0x0C);
     return;
 }
 
@@ -120,14 +120,14 @@ void mdump (char *s1, char *s2) {
 
                 if (c >= 32 && c <= 126)
                 {
-                    uart_putc(c);
+                    uart_put(c);
                 }
                 else
                 {
-                    uart_putc(' ');
+                    uart_put(' ');
                 }
 
-                uart_putc(' ');
+                uart_put(' ');
 
             }
 
@@ -143,6 +143,10 @@ void exec (cpio_header_t *header, char *file_name)
 {
     void (*prog)();
     unsigned int current_el;
+    char *stack_top;
+    
+    stack_top = malloc(0x2000);
+    stack_top = stack_top + 0x2000;
 
     prog = cpio_load(header, file_name);
 
@@ -156,28 +160,30 @@ void exec (cpio_header_t *header, char *file_name)
     asm volatile ("mrs %0, CurrentEL" : "=r" (current_el));
     current_el = current_el >> 2;
 
-    char *stack_top = malloc(0x2000);
-    stack_top = stack_top + 0x2000;
-
     // Print prompt
     uart_puts("Current EL: 0x");
     uart_puth(current_el);
-    uart_putc('\n');
+    uart_put('\n');
     uart_puts("User program name: ");
-    uart_putc('"');
+    uart_put('"');
     uart_puts(file_name);
-    uart_putc('"');
+    uart_put('"');
     uart_puts(" (at 0x");
     uart_puth((unsigned long) prog);
     uart_puts(")");
-    uart_putc('\n');
+    uart_put('\n');
     uart_puts("User program stack top: 0x");
     uart_puth((unsigned long) stack_top);
-    uart_putc('\n');
+    uart_put('\n');
     uart_puts("-----------------Entering user program-----------------\n");
 
-    enable_timer_interrupt();
+    asyn_uart_init();
+    set_timer_interrupt(true);
+    set_timeout(2);
+
     from_EL1_to_EL0((unsigned long)prog, (unsigned long)stack_top);
+
+    while(1) uart_puts("n");
 
     return;
 }
@@ -185,31 +191,31 @@ void exec (cpio_header_t *header, char *file_name)
 //-----------------------------------------------------------------
 
 void put_left () {
-    uart_putc(0x1B);
-    uart_putc(0x5B);
-    uart_putc(0x44);
+    uart_put(0x1B);
+    uart_put(0x5B);
+    uart_put(0x44);
     return;
 }
 
 void put_right () {
-    uart_putc(0x1B);
-    uart_putc(0x5B);
-    uart_putc(0x43);
+    uart_put(0x1B);
+    uart_put(0x5B);
+    uart_put(0x43);
     return;
 }
 
 void echo_back (char c) {
 
-    uart_putc(c);
+    uart_put(c);
 
     if (c == '\n')
     {
-        uart_putc('\r');
+        uart_put('\r');
     }
     else if (c == '\b')
     {
-        uart_putc(' ');
-        uart_putc('\b');
+        uart_put(' ');
+        uart_put('\b');
     }
 
     return;
@@ -252,10 +258,10 @@ void read_cmd (char *cmd) {
                 {
                     strpullout(cmd, pos - 1);
                     tmp = tail - pos;
-                    uart_putc('\b');
-                    for (int i = 0; i < tmp; i++) uart_putc(cmd[pos - 1 + i]);
-                    uart_putc(' ');
-                    for (int i = 0; i < tmp + 1; i++) uart_putc('\b');
+                    uart_put('\b');
+                    for (int i = 0; i < tmp; i++) uart_put(cmd[pos - 1 + i]);
+                    uart_put(' ');
+                    for (int i = 0; i < tmp + 1; i++) uart_put('\b');
                 }
                 else
                 {
@@ -304,8 +310,8 @@ void read_cmd (char *cmd) {
                 else
                 {
                     /* not special operation */
-                    uart_putc(0x5B);
-                    uart_putc(c);
+                    uart_put(0x5B);
+                    uart_put(c);
                 }
             }
             else
@@ -316,7 +322,7 @@ void read_cmd (char *cmd) {
         else if (c == 0x01)
         {
             /* Go to head */
-            for (int i = 0; i < pos; i++) uart_putc('\b');
+            for (int i = 0; i < pos; i++) uart_put('\b');
             pos = 0;
         }
         else if (c == 0x05)
@@ -331,8 +337,8 @@ void read_cmd (char *cmd) {
         {
             /* Erase till end of line */
             tmp = tail - pos;
-            for (int i = 0; i < tmp; i++) uart_putc(' ');
-            for (int i = 0; i < tmp; i++) uart_putc('\b');
+            for (int i = 0; i < tmp; i++) uart_put(' ');
+            for (int i = 0; i < tmp; i++) uart_put('\b');
             cmd[pos] = '\0';
             tail = pos;
         }
@@ -342,8 +348,8 @@ void read_cmd (char *cmd) {
             {
                 strinsert(cmd, c, pos);
                 tmp = tail - pos;
-                for (int i = 0; i < tmp + 1; i++) uart_putc(cmd[pos + i]);
-                for (int i = 0; i < tmp; i++) uart_putc('\b');
+                for (int i = 0; i < tmp + 1; i++) uart_put(cmd[pos + i]);
+                for (int i = 0; i < tmp; i++) uart_put('\b');
             }
             else
             {

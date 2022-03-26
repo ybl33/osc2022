@@ -12,7 +12,7 @@ int main () {
 
     // Read kernel
     uart_init();
-    uart_putc(0x0C);
+    uart_put(0x0C);
     uart_puts("[Uartboot] Waiting for kernel image.\n");
     
     for (int i = 0; i < 4; i++) {
