@@ -19,11 +19,15 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
     /* First task */
     if (timer_task_list == NULL)
     {
+
         timer_task_list = new_task;
         
+        /* Set timeout first */
+        set_timeout(after);
+
         /* Enable core timer interrupt */
         set_timer_interrupt(true);
-        set_timeout(after);
+
     }
     else /* Insert into list */
     {
@@ -64,11 +68,14 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
 
     }
 
+    /* Print prompt */
     uart_puts("[ ");
     uart_putu(c_time);
     uart_puts(" secs ] Timer task will be execute ");
     uart_putu(after);
-    uart_puts(" secs later.\n");
+    uart_puts(" secs later. (at ");
+    uart_putu(new_task->execute_time);
+    uart_puts(" secs)\n");
 
     return;
 }

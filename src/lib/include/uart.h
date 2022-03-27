@@ -23,6 +23,7 @@ void uart_puts(char *s);
 #define WRITE_BUF_SIZE         (1024)
 extern char read_buffer[READ_BUF_SIZE];
 extern char write_buffer[WRITE_BUF_SIZE];
+// TO DO : maybe need to handle buffer overflow
 
 extern unsigned int read_head;
 extern unsigned int write_head;

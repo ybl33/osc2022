@@ -19,14 +19,13 @@ void set_interrupt (bool enable) {
 
 void set_timer_interrupt (bool enable) {
 
+    /* Needs to set timeout first */
+
     if (enable)
     {
         // Enable
         asm volatile ("mov x0, 1");
         asm volatile ("msr cntp_ctl_el0, x0");
-        // Init expire time, 1 second later
-        asm volatile ("mrs x0, cntfrq_el0");
-        asm volatile ("msr cntp_tval_el0, x0");
         // Unmask timer interrupt
         asm volatile ("mov x0, 2");
         asm volatile ("ldr x1, =0x40000040");
@@ -92,30 +91,39 @@ void irq_handler () {
     unsigned int is_uart_irq;
 
     /* New task */
+    bool execute_immediately = false;
     struct exception_task *new_task = NULL;
     unsigned int priority = 0;
     void (*handler) () = NULL;
 
-    /* Disable interrupt */
-    set_interrupt(false);    
+    /* Enter critical section */
+    set_interrupt(false);
 
     is_timer_irq = mmio_get(CORE_0_IRQ_SOURCE) & CORE_IRQ_CNTPNS;
     is_uart_irq  = mmio_get(IRQ_1_PENDING) & IRQ_1_AUX_INT;
 
+    /* Analysis IRQ source */
     if (is_timer_irq)
     {
         handler  = timer_irq_handler;
         priority = TIMER_IRQ_PRIO;
+
+        // Disable core timer interrupt until handler finish its work
+        set_timer_interrupt(false);
     }
     else if (is_uart_irq)
     {
         handler  = uart_irq_handler;
         priority = UART_IRQ_PRIO;
+
+        // Disable aux interrupt until handler finish its work
+        set_aux_int(false);
     }
 
     /* Add handler into exception task list */
     if (handler != NULL)
     {
+
         /* Construct new task */
         new_task = malloc(sizeof(struct exception_task));
         new_task->priority  = priority;
@@ -124,16 +132,22 @@ void irq_handler () {
 
         if (exception_task_list == NULL || (exception_task_list->priority < new_task->priority))
         {
+
             /* No pending task or Preemption */
+            execute_immediately = true;
             new_task->next_task = exception_task_list;
             exception_task_list = new_task;
-            new_task->handler();
+
         }
         else
         {
+
             struct exception_task *prev;
             struct exception_task *c;
             
+            /* Enter critical section */
+            set_interrupt(false);
+
             prev = NULL;
             c    = exception_task_list;
 
@@ -152,12 +166,30 @@ void irq_handler () {
             new_task->next_task = prev->next_task;
             prev->next_task = new_task;
 
-            new_task->handler();
-
         }
     }
 
+    /* Exit critical section */
     set_interrupt(true);
+
+    /* Execute handler */
+
+    if (execute_immediately)
+    {
+        /* Execute handler immediately */
+        while (exception_task_list != NULL)
+        {
+
+            /* Execute handler with interrupt enabled */
+            exception_task_list->handler();
+
+            /* Do the rest */
+            set_interrupt(false);
+            exception_task_list = exception_task_list->next_task; // TO DO: free the memory space
+            set_interrupt(true);
+        }
+    }
+
 
     return;
 }
@@ -176,7 +208,7 @@ void uart_irq_handler () {
 
     // Disable aux interrupt
     set_aux_int(false);
-
+    
     is_rx_irq = mmio_get(AUX_MU_IIR_REG) & 0x4; // Receiver holds valid byte
     is_tx_irq = mmio_get(AUX_MU_IIR_REG) & 0x2; // Transmit holding register empty
 
@@ -243,7 +275,11 @@ void timer_irq_handler () {
             after = 0;
         }
 
+        /* Set next timeout */
         set_timeout(after);
+
+        /* Enable the timer interrupt */
+        set_timer_interrupt(true);
     }
 
     return;
