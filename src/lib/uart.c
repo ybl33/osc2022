@@ -56,8 +56,17 @@ void uart_init () {
     return;
 }
 
+
+bool uart_rx_valid () {
+    return (mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_DATA_READY);
+}
+
+bool uart_tx_ready () {
+    return (mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_TRANS_EMPTY);
+}
+
 void uart_flush () {
-    while (mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_DATA_READY) mmio_get(AUX_MU_IO_REG);
+    while (uart_rx_valid()) mmio_get(AUX_MU_IO_REG);
 }
 
 char uart_get () {
@@ -65,7 +74,7 @@ char uart_get () {
     char c;
     
     /* Wait for data ready */
-    while ((mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_DATA_READY) == 0) asm volatile ("nop");
+    while (!uart_rx_valid()) asm volatile ("nop");
     c = mmio_get(AUX_MU_IO_REG);
 
     return c;
@@ -83,7 +92,7 @@ char uart_getc () {
 void uart_put (char c) {
 
     /* Wait for transmitter ready to receive data */
-    while ((mmio_get(AUX_MU_LSR_REG) & AUX_MU_LSR_TRANS_EMPTY) == 0) asm volatile ("nop");
+    while (!uart_tx_ready()) asm volatile ("nop");
     
     /* Put data */
     mmio_put(AUX_MU_IO_REG, c);

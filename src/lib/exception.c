@@ -1,5 +1,8 @@
 #include "exception.h"
 
+/* Exception list */
+struct exception_task *exception_task_list = NULL;
+
 void set_interrupt (bool enable) {
 
     if (enable)
@@ -78,26 +81,80 @@ void syn_handler () {
     uart_puth(spsr_el1);
     uart_puts("\n");
     uart_puts("----------------------------\n");
+
     return;
 }
 
 void irq_handler () {
 
+    /* IRQ Source */
     unsigned int is_timer_irq;
     unsigned int is_uart_irq;
 
-    set_interrupt(false);
+    /* New task */
+    struct exception_task *new_task = NULL;
+    unsigned int priority = 0;
+    void (*handler) () = NULL;
+
+    /* Disable interrupt */
+    set_interrupt(false);    
 
     is_timer_irq = mmio_get(CORE_0_IRQ_SOURCE) & CORE_IRQ_CNTPNS;
     is_uart_irq  = mmio_get(IRQ_1_PENDING) & IRQ_1_AUX_INT;
 
     if (is_timer_irq)
     {
-        timer_irq_handler();
+        handler  = timer_irq_handler;
+        priority = TIMER_IRQ_PRIO;
     }
     else if (is_uart_irq)
     {
-        uart_irq_handler();
+        handler  = uart_irq_handler;
+        priority = UART_IRQ_PRIO;
+    }
+
+    /* Add handler into exception task list */
+    if (handler != NULL)
+    {
+        /* Construct new task */
+        new_task = malloc(sizeof(struct exception_task));
+        new_task->priority  = priority;
+        new_task->handler   = handler;
+        new_task->next_task = NULL;
+
+        if (exception_task_list == NULL || (exception_task_list->priority < new_task->priority))
+        {
+            /* No pending task or Preemption */
+            new_task->next_task = exception_task_list;
+            exception_task_list = new_task;
+            new_task->handler();
+        }
+        else
+        {
+            struct exception_task *prev;
+            struct exception_task *c;
+            
+            prev = NULL;
+            c    = exception_task_list;
+
+            while (c != NULL)
+            {
+                if (c->priority < new_task->priority)
+                {
+                    break;
+                }
+
+                prev = c;
+                c = c->next_task;
+            }
+
+            /* Insert */
+            new_task->next_task = prev->next_task;
+            prev->next_task = new_task;
+
+            new_task->handler();
+
+        }
     }
 
     set_interrupt(true);
@@ -107,7 +164,7 @@ void irq_handler () {
 
 void undefined_handler () {
 
-    // uart_puts("Undefined exception occur.\n");
+    uart_puts("Undefined exception occur.\n");
 
     return;
 }
@@ -117,6 +174,7 @@ void uart_irq_handler () {
     unsigned int is_rx_irq;
     unsigned int is_tx_irq;
 
+    // Disable aux interrupt
     set_aux_int(false);
 
     is_rx_irq = mmio_get(AUX_MU_IIR_REG) & 0x4; // Receiver holds valid byte
@@ -124,8 +182,13 @@ void uart_irq_handler () {
 
     if (is_rx_irq)
     {
-        read_buffer[read_head] = uart_get();
-        read_head = (read_head + 1) & (READ_BUF_SIZE - 1);
+
+        while (uart_rx_valid())
+        {
+            read_buffer[read_head] = uart_get();
+            read_head = (read_head + 1) & (READ_BUF_SIZE - 1);
+        }
+        
     }
     else if (is_tx_irq)
     {

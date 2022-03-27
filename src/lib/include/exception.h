@@ -1,5 +1,7 @@
 #ifndef __EXCEPTION__H__
 #define __EXCEPTION__H__
+#include "stddef.h"
+#include "heap.h"
 #include "mmio.h"
 #include "uart.h"
 #include "timer.h"
@@ -22,6 +24,20 @@
 #define IRQs_1_HAS_PENDING   (1 << 8)
 #define IRQ_1_LOCAL_TIMER    (1 << 11)
 #define IRQ_1_AUX_INT        (1 << 29)
+
+/* PRIO */
+#define TIMER_IRQ_PRIO       (0)
+#define UART_IRQ_PRIO        (1)
+
+struct exception_task {
+
+    unsigned int priority;
+    void (*handler) ();
+    struct exception_task *next_task;
+
+};
+
+extern struct exception_task *exception_task_list;
 
 void set_interrupt(bool enable);
 void set_timer_interrupt(bool enable);

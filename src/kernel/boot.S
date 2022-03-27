@@ -138,7 +138,7 @@ exception_vector_table:
     b unsupported 
     .align 7
 
-    b hang 
+    b syn 
     .align 7
     b irq 
     .align 7

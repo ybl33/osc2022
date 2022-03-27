@@ -8,6 +8,8 @@
 #define AUX_MU_LSR_DATA_READY  (1)
 
 void uart_init();
+bool uart_rx_valid();
+bool uart_tx_ready();
 void uart_flush();
 char uart_get();
 char uart_getc();

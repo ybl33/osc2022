@@ -1,6 +1,6 @@
 #include "timer.h"
 
-struct timer_task *timer_task_list = 0;
+struct timer_task *timer_task_list = NULL;
 
 void add_timer (void (*callback) (), void *data, unsigned int after) {
 
@@ -14,14 +14,14 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
     new_task->execute_time = c_time + after;
     new_task->callback     = callback;
     new_task->data         = data;
-    new_task->next_task    = 0;
+    new_task->next_task    = NULL;
 
     /* First task */
-    if (timer_task_list == 0)
+    if (timer_task_list == NULL)
     {
         timer_task_list = new_task;
         
-        // Enable core timer interrupt
+        /* Enable core timer interrupt */
         set_timer_interrupt(true);
         set_timeout(after);
     }
@@ -30,10 +30,10 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
 
         struct timer_task *prev;
         struct timer_task *c;
-        prev = 0;
+        prev = NULL;
         c    = timer_task_list;
 
-        while (c != 0)
+        while (c != NULL)
         {
 
             if (c->execute_time > new_task->execute_time)
@@ -47,7 +47,7 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
         }
 
         /* Insert */
-        if (prev != 0)
+        if (prev != NULL)
         {
             new_task->next_task = prev->next_task;
             prev->next_task = new_task;

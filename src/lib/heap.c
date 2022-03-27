@@ -6,6 +6,21 @@ static unsigned long heap_top  = (unsigned long) &__heap_start;
 static unsigned long heap_size = (unsigned long) &__heap_size;
 static unsigned long *curr_top = (unsigned long *) 0xFFFFFFF0, *heap_end = (unsigned long *) 0xFFFFFFF0;
 
+unsigned long *heap_align (unsigned long *v) {
+
+    unsigned long r = (unsigned long) v;
+    unsigned long lower_bits = r & 0x3;
+
+    r = r - lower_bits;
+
+    if (lower_bits > 0)
+    {
+        r = r + 4;
+    }
+
+    return (unsigned long *)r;
+}
+
 void *malloc (size_t n) {
 
     void *return_ptr;
@@ -19,6 +34,7 @@ void *malloc (size_t n) {
 
     return_ptr = curr_top;
     curr_top   = (unsigned long *)((char *)curr_top + n);
+    curr_top   = heap_align(curr_top);
 
     return return_ptr;
 }
