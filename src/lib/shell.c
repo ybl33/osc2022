@@ -191,6 +191,11 @@ void setTimeout (char *msg, char *ascii_after) {
     len = strlen(msg);
     after = atou(ascii_after);
 
+    if (after == -1 )
+    {
+        return;
+    }
+
     /* Copy message into data buffer */
     data = malloc(len + 2);
 

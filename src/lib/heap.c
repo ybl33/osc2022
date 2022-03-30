@@ -9,13 +9,13 @@ static unsigned long *curr_top = (unsigned long *) 0xFFFFFFF0, *heap_end = (unsi
 unsigned long *heap_align (unsigned long *v) {
 
     unsigned long r = (unsigned long) v;
-    unsigned long lower_bits = r & 0x3;
+    unsigned long lower_bits = r & 0x7;
 
     r = r - lower_bits;
 
     if (lower_bits > 0)
     {
-        r = r + 4;
+        r = r + 8;
     }
 
     return (unsigned long *)r;

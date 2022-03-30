@@ -91,10 +91,14 @@ void irq_handler () {
     unsigned int is_uart_irq;
 
     /* New task */
-    bool execute_immediately = false;
     struct exception_task *new_task = NULL;
     unsigned int priority = 0;
-    void (*handler) () = NULL;
+    void (*handler) ()    = NULL;
+
+    /* Flags */
+    bool is_first      = false;
+    bool is_preemption = false;
+    bool done_all_task;
 
     /* Enter critical section */
     set_interrupt(false);
@@ -133,8 +137,16 @@ void irq_handler () {
         if (exception_task_list == NULL || (exception_task_list->priority < new_task->priority))
         {
 
-            /* No pending task or Preemption */
-            execute_immediately = true;
+            /* No pending task or preemption */
+            if (exception_task_list == NULL)
+            {
+                is_first = true;
+            }
+            else
+            {
+                is_preemption = true;
+            }
+
             new_task->next_task = exception_task_list;
             exception_task_list = new_task;
 
@@ -144,9 +156,6 @@ void irq_handler () {
 
             struct exception_task *prev;
             struct exception_task *c;
-            
-            /* Enter critical section */
-            set_interrupt(false);
 
             prev = NULL;
             c    = exception_task_list;
@@ -172,24 +181,50 @@ void irq_handler () {
     /* Exit critical section */
     set_interrupt(true);
 
-    /* Execute handler */
-    if (execute_immediately)
+    /* First exception, execute handler immediately */
+    if (is_first)
     {
 
-        /* Execute handler immediately */
-        do {
+        done_all_task = false;
+
+        while (!done_all_task) {
 
             /* Execute handler with interrupt enabled */
-            exception_task_list->handler();
+            handler();
 
             /* Do the rest */
             set_interrupt(false);
-            exception_task_list = exception_task_list->next_task; // TO DO: free the memory space
+            exception_task_list = exception_task_list->next_task;
+            done_all_task       = (exception_task_list == NULL);
+
+            if (!done_all_task)
+            {
+                handler = exception_task_list->handler;
+            }
+
             set_interrupt(true);
-        } while (exception_task_list != NULL);
+
+        };
 
     }
 
+    /* Preemption, execute handler immediately */
+    if (is_preemption)
+    {
+        uart_puts("\n\n");
+        uart_puts("+-------------------+\n");
+        uart_puts("| Preemption occur! |\n");
+        uart_puts("+-------------------+\n");
+        uart_puts("Continue (y) ?\n");
+        while (uart_get() != 'y') /* Wait for 'y' */ ;
+        uart_puts("\n\n");
+
+        handler();
+
+        set_interrupt(false);
+        exception_task_list = exception_task_list->next_task;
+        set_interrupt(true);
+    }
 
     return;
 }
