@@ -173,12 +173,11 @@ void irq_handler () {
     set_interrupt(true);
 
     /* Execute handler */
-
     if (execute_immediately)
     {
+
         /* Execute handler immediately */
-        while (exception_task_list != NULL)
-        {
+        do {
 
             /* Execute handler with interrupt enabled */
             exception_task_list->handler();
@@ -187,7 +186,8 @@ void irq_handler () {
             set_interrupt(false);
             exception_task_list = exception_task_list->next_task; // TO DO: free the memory space
             set_interrupt(true);
-        }
+        } while (exception_task_list != NULL);
+
     }
 
 

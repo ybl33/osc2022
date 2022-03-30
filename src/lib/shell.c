@@ -162,21 +162,21 @@ void exec (cpio_header_t *header, char *file_name)
     current_el = current_el >> 2;
 
     // Print prompt
-    asyn_uart_puts("Current EL: 0x");
-    asyn_uart_puth(current_el);
-    asyn_uart_put('\n');
-    asyn_uart_puts("User program name: ");
-    asyn_uart_put('"');
-    asyn_uart_puts(file_name);
-    asyn_uart_put('"');
-    asyn_uart_puts(" (at 0x");
-    asyn_uart_puth((unsigned long) prog);
-    asyn_uart_puts(")");
-    asyn_uart_put('\n');
-    asyn_uart_puts("User program stack top: 0x");
-    asyn_uart_puth((unsigned long) stack_top);
-    asyn_uart_put('\n');
-    asyn_uart_puts("-----------------Entering user program-----------------\n");
+    uart_puts("Current EL: 0x");
+    uart_puth(current_el);
+    uart_puts("\n");
+    uart_puts("User program name: ");
+    uart_put('"');
+    uart_puts(file_name);
+    uart_put('"');
+    uart_puts(" (at 0x");
+    uart_puth((unsigned long) prog);
+    uart_puts(")");
+    uart_puts("\n");
+    uart_puts("User program stack top: 0x");
+    uart_puth((unsigned long) stack_top);
+    uart_puts("\n");
+    uart_puts("-----------------Entering user program-----------------\n");
 
     from_EL1_to_EL0((unsigned long)prog, (unsigned long)stack_top);
 
