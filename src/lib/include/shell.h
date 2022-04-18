@@ -8,14 +8,15 @@
 #include "dtb.h"
 #include "exception.h"
 #include "timer.h"
+#include "buddy.h"
+#include "slab.h"
 #define CMD_BUF_SIZE 32
 #define MAX_ARG_NUM  4
 void print_system_info();
 void welcome();
 void help();
 void clear();
-void salloc(char *s);
-void mdump(char *s1, char *s2);
+void buddy_alloc_test(size_t sz);
 void put_left();
 void put_right();
 void echo_back(char c);

@@ -1,8 +1,12 @@
 #include "shell.h"
-
+extern unsigned long __start;
+extern unsigned long __end;
 extern unsigned long DTB_BASE;
 extern unsigned long CPIO_BASE;
 extern void from_EL1_to_EL0(unsigned long prog, unsigned long sp);
+
+static unsigned long kernel_start = (unsigned long) &__start;
+static unsigned long kernel_end   = (unsigned long) &__end;
 
 void print_system_info () {
     unsigned int board_revision;
@@ -44,8 +48,10 @@ void welcome () {
 
 void help () {
     asyn_uart_puts("----------------Memory Allocator---------------\n");
-    asyn_uart_puts("* salloc     : allocate memory for the string.\n");
-    asyn_uart_puts("* mdump      : dump content of memory.\n");
+    asyn_uart_puts("* bmalloc    : buddy system allocation test.\n");
+    asyn_uart_puts("* bfree      : buddy system free test.\n");
+    asyn_uart_puts("* kmalloc    : slab allocation test.\n");
+    asyn_uart_puts("* kfree      : slab free test.\n");
     asyn_uart_puts("------------------File system------------------\n");
     asyn_uart_puts("* cat        : display the file contents.\n");
     asyn_uart_puts("* exec       : load and execute user program.\n");
@@ -67,75 +73,44 @@ void clear () {
     return;
 }
 
-void salloc (char *s) {
+void buddy_alloc_test (size_t sz) {
 
-    size_t sz;
     char *mptr;
 
     /* Allocate memory for string */
-    sz = strlen(s);
-    mptr = malloc(sz);
+    mptr = alloc_pages(sz);
 
     /* Copy string into allocated memory */
-    strcpy(mptr, s);
+    for (int i = 0; i < sz; i++)
+    {
+        mptr[i] = 0xFF;
+    }
 
     /* Print prompt */
-    asyn_uart_puts("Allocated address : 0x");
+    asyn_uart_puts("[buddy alloc] Allocated address : 0x");
     asyn_uart_puth((unsigned long)mptr & 0xFFFFFFFF);
     asyn_uart_puts("\n");
-    asyn_uart_puts("Allocated size    : 0x");
-    asyn_uart_puth(sz);
 
     return;
 }
 
-void mdump (char *s1, char *s2) {
+void slab_alloc_test (size_t sz) {
 
-    unsigned long addr;
-    unsigned long len;
-    char c;
+    char *mptr;
 
-    if (s1[0] != '0' || s1[1] != 'x' || s2[0] != '0' || s2[1] != 'x')
+    /* Allocate memory for string */
+    mptr = kmalloc(sz);
+
+    /* Copy string into allocated memory */
+    for (int i = 0; i < sz; i++)
     {
-        asyn_uart_puts("Wrong input, address should start with 0x\n");
+        mptr[i] = 0xFF;
     }
-    else
-    {
-        s1   = s1 + 2;
-        s2   = s2 + 2;
-        addr = htoin(s1, strlen(s1));
-        len  = htoin(s2, strlen(s2));
-        len  = (len + 3) >> 2;
-        asyn_uart_puts("  Address    Content (Hex)    ASCII\n");
-        for (int i = 0; i < len; i++)
-        {
-            asyn_uart_puts("0x");
-            asyn_uart_puth(addr);
-            asyn_uart_puts("    0x");
-            asyn_uart_puth(*(unsigned int *)addr);
-            asyn_uart_puts("     ");
 
-            for (int j = 0; j < 4; j++) {
-
-                c = ((char *)addr)[3 - j];
-
-                if (c >= 32 && c <= 126)
-                {
-                    asyn_uart_put(c);
-                }
-                else
-                {
-                    asyn_uart_put(' ');
-                }
-
-                asyn_uart_put(' ');
-
-            }
-
-            asyn_uart_puts("\n");
-            addr += 4;
-        }
-    }
+    /* Print prompt */
+    asyn_uart_puts("[slab alloc] Allocated address : 0x");
+    asyn_uart_puth((unsigned long)mptr & 0xFFFFFFFF);
+    asyn_uart_puts("\n");
 
     return;
 }
@@ -450,26 +425,56 @@ void do_cmd (char *cmd) {
             cpio_cat((cpio_header_t *)CPIO_BASE, argv[1]);
         }
     }
-    else if ( strcmp(argv[0], "salloc") == 0 )
+    else if ( strcmp(argv[0], "bmalloc") == 0 )
     {
         if (argc < 2) 
         {
-            asyn_uart_puts("Usage: salloc <string>\n");
+            asyn_uart_puts("Usage: bmalloc <size>\n");
         }
         else
         {
-            salloc(argv[1]);
+            buddy_alloc_test(atou(argv[1]));
         }
     }
-    else if ( strcmp(argv[0], "mdump") == 0 )
+    else if ( strcmp(argv[0], "bfree") == 0 )
     {
-        if (argc < 3) 
+        if (argc < 2) 
         {
-            asyn_uart_puts("Usage: mdump <address> <length>\n");
+            asyn_uart_puts("Usage: bfree <address in hex>\n");
         }
         else
         {
-            mdump(argv[1], argv[2]);
+            unsigned long addr = htoi(argv[1]);
+            uart_puts("[bfree test] address: 0x");
+            uart_puth(addr);
+            uart_puts("\n");
+            free_page((void *)addr);
+        }
+    }
+    else if ( strcmp(argv[0], "kmalloc") == 0 )
+    {
+        if (argc < 2) 
+        {
+            asyn_uart_puts("Usage: kmalloc <size>\n");
+        }
+        else
+        {
+            slab_alloc_test(atou(argv[1]));
+        }
+    }
+    else if ( strcmp(argv[0], "kfree") == 0 )
+    {
+        if (argc < 2) 
+        {
+            asyn_uart_puts("Usage: kfree <address in hex>\n");
+        }
+        else
+        {
+            unsigned long addr = htoi(argv[1]);
+            uart_puts("[kfree test] address: 0x");
+            uart_puth(addr);
+            uart_puts("\n");
+            kfree((void *)addr);
         }
     }
     else if ( strcmp(argv[0], "lsdev") == 0 )
@@ -515,6 +520,13 @@ void shell_start () {
     // System init
     asyn_uart_init();
     cpio_init();
+
+    // Reserve memory
+    unsigned int dtb_size = SWAP_UINT32(((struct fdt_header *)DTB_BASE)->totalsize);
+    memory_reserve(0x0000, 0x1000);                // Spin tables for multicore boot
+    memory_reserve(kernel_start, kernel_end);      // Kernel image
+    memory_reserve(CPIO_BASE, CPIO_BASE + 8192);   // initramfs 8KB
+    memory_reserve(DTB_BASE, DTB_BASE + dtb_size); // dtb 8KB
 
     // Print prompt
     clear();

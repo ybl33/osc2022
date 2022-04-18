@@ -3,6 +3,10 @@ BUILD_DIR = ./build
 LIB_SRC_DIR = ../lib
 
 LIB_SRC = \
+	$(LIB_SRC_DIR)/buddy.c \
+	$(LIB_SRC_DIR)/list.c \
+	$(LIB_SRC_DIR)/slab.c \
+	$(LIB_SRC_DIR)/log.c \
 	$(LIB_SRC_DIR)/cpio.c \
 	$(LIB_SRC_DIR)/dtb.c \
 	$(LIB_SRC_DIR)/heap.c \

@@ -3,6 +3,9 @@ __heap_size  = 0x00200000;
 SECTIONS
 {
     . = 0x80000;
+
+    __start = .;
+    
     .text : 
     { 
         KEEP(*(.text.boot))
@@ -32,7 +35,11 @@ SECTIONS
     }
     
     __heap_start = .;
+    
+    . = . + __heap_size;
 
-    _end = .;
+    __heap_end = .;
+
+    __end = .;
 }
 __bss_size = (__bss_end - __bss_start) >> 3;

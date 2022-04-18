@@ -219,6 +219,7 @@ void irq_handler () {
         while (uart_get() != 'y') /* Wait for 'y' */ ;
         uart_puts("\n\n");
 
+        
         handler();
 
         set_interrupt(false);
