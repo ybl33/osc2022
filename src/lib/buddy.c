@@ -67,6 +67,11 @@ void buddy_free_list_init () {
     for (int order = 0; order < BUDDY_ORDER_NUM; order++) 
     {
         list_init(&free_lists[order]);
+    }
+
+    for (int order = 0; order < (BUDDY_ORDER_NUM - 1); order++) 
+    {
+        list_init(&free_lists[order]);
 
         c_index = 0;
 
