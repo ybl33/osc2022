@@ -17,6 +17,7 @@ extern struct timer_task *timer_task_list;
 
 void add_timer(void (*callback) (), void *data, unsigned int after);
 void set_timeout(unsigned int seconds);
+void set_timeout_by_ticks(unsigned int ticks);
 unsigned long time();
 void print_time();
 

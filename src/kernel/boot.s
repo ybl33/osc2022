@@ -50,10 +50,11 @@ hang:
     wfe
     b       hang
 
+
 // Execption
 // save general registers to stack
 .macro save_all
-    sub     sp, sp, 16 * 17
+    sub     sp, sp, 16 * 18
     // saving general registers
     stp     x0, x1, [sp ,16 * 0]
     stp     x2, x3, [sp ,16 * 1]
@@ -70,16 +71,25 @@ hang:
     stp     x24, x25, [sp ,16 * 12]
     stp     x26, x27, [sp ,16 * 13]
     stp     x28, x29, [sp ,16 * 14]
+    str     x30, [sp ,16 * 15]
+
     // saving el registers
-    mrs     x28, SPSR_EL1
-    mrs     x29, ELR_EL1
-    stp     x28, x29, [sp, 16 * 15]
-    mrs     x28, SP_EL0
-    stp     x28, x30, [sp, 16 * 16]
+    mrs     x0, SPSR_EL1
+    str     x0, [sp, 16 * 15 + 8]
+    mrs     x0, ELR_EL1
+    mrs     x1, SP_EL0
+    stp     x0, x1, [sp, 16 * 16]
 .endm
 
 // load general registers from stack
 .macro load_all
+    // load el registers
+    ldr     x0, [sp, 16 * 15 + 8]
+    msr     SPSR_EL1, x0
+    ldp     x0, x1, [sp, 16 * 16]
+    msr     ELR_EL1, x0
+    msr     SP_EL0, x1
+
     // load general registers
     ldp     x0, x1, [sp ,16 * 0]
     ldp     x2, x3, [sp ,16 * 1]
@@ -96,23 +106,21 @@ hang:
     ldp     x24, x25, [sp ,16 * 12]
     ldp     x26, x27, [sp ,16 * 13]
     ldp     x28, x29, [sp ,16 * 14]
-    // load el registers
-    ldp     x28, x29, [sp, 16 * 15]
-    msr     SPSR_EL1, x28
-    msr     ELR_EL1, x29
-    ldp     x28, x30, [sp, 16 * 16]
-    msr     SP_EL0, x28
-    add     sp, sp, 16 * 17
+    ldr     x30, [sp, 16 * 15]
+
+    add     sp, sp, 16 * 18
 .endm
 
 syn:
     save_all
+    mov x0, sp
     bl syn_handler
     load_all
     eret
 
 irq:
     save_all
+    mov x0, sp
     bl irq_handler
     load_all
     eret
@@ -181,6 +189,109 @@ from_EL2_to_EL1:
 from_EL1_to_EL0:
     msr     elr_el1, x0
     msr     sp_el0, x1
+    mov     sp, x2
     mov     x1, 0x340
     msr     spsr_el1, x1
     eret
+
+.global switch_to
+switch_to:
+    stp x19, x20, [x0, 16 * 0]
+    stp x21, x22, [x0, 16 * 1]
+    stp x23, x24, [x0, 16 * 2]
+    stp x25, x26, [x0, 16 * 3]
+    stp x27, x28, [x0, 16 * 4]
+    stp fp, lr, [x0, 16 * 5]
+    mov x9, sp
+    str x9, [x0, 16 * 6]
+
+    ldp x19, x20, [x1, 16 * 0]
+    ldp x21, x22, [x1, 16 * 1]
+    ldp x23, x24, [x1, 16 * 2]
+    ldp x25, x26, [x1, 16 * 3]
+    ldp x27, x28, [x1, 16 * 4]
+    ldp fp, lr, [x1, 16 * 5]
+    ldr x9, [x1, 16 * 6]
+    mov sp,  x9
+    msr tpidr_el1, x2
+    ret
+
+.global store_context
+store_context:
+    stp x19, x20, [x0, 16 * 0]
+    stp x21, x22, [x0, 16 * 1]
+    stp x23, x24, [x0, 16 * 2]
+    stp x25, x26, [x0, 16 * 3]
+    stp x27, x28, [x0, 16 * 4]
+    stp fp, lr, [x0, 16 * 5]
+    mov x9, sp
+    str x9, [x0, 16 * 6]
+    ret
+
+.global load_context
+load_context:
+    ldp x19, x20, [x0, 16 * 0]
+    ldp x21, x22, [x0, 16 * 1]
+    ldp x23, x24, [x0, 16 * 2]
+    ldp x25, x26, [x0, 16 * 3]
+    ldp x27, x28, [x0, 16 * 4]
+    ldp fp, lr, [x0, 16 * 5]
+    ldr x9, [x0, 16 * 6]
+    mov sp,  x9
+    ret
+
+
+// system calls
+.global sys_get_pid
+sys_get_pid:
+    mov x8, 0
+    svc 0
+    ret
+
+.global sys_uart_read
+sys_uart_read:
+    mov x8, 1
+    svc 0
+    ret
+
+.global sys_uart_write
+sys_uart_write:
+    mov x8, 2
+    svc 0
+    ret
+
+.global sys_exec
+sys_exec:
+    mov x8, 3
+    svc 0
+    ret
+
+.global sys_fork
+sys_fork:
+    mov x8, 4
+    svc 0
+    ret
+
+.global sys_exit
+sys_exit:
+    mov x8, 5
+    svc 0
+    ret
+
+.global sys_mbox_call
+sys_mbox_call:
+    mov x8, 6
+    svc 0
+    ret
+
+.global sys_kill
+sys_kill:
+    mov x8, 7
+    svc 0
+    ret
+
+.global sys_ret
+sys_ret:
+    mov x8, 10
+    svc 0
+    ret

@@ -1,12 +1,6 @@
 #include "shell.h"
-extern unsigned long __start;
-extern unsigned long __end;
 extern unsigned long DTB_BASE;
 extern unsigned long CPIO_BASE;
-extern void from_EL1_to_EL0(unsigned long prog, unsigned long sp);
-
-static unsigned long kernel_start = (unsigned long) &__start;
-static unsigned long kernel_end   = (unsigned long) &__end;
 
 void print_system_info () {
     unsigned int board_revision;
@@ -54,7 +48,7 @@ void help () {
     asyn_uart_puts("* kfree      : slab free test.\n");
     asyn_uart_puts("------------------File system------------------\n");
     asyn_uart_puts("* cat        : display the file contents.\n");
-    asyn_uart_puts("* exec       : load and execute user program.\n");
+    asyn_uart_puts("* load       : load and loadute user program.\n");
     asyn_uart_puts("* ls         : list the files in cpio archive.\n");
     asyn_uart_puts("* lsdev      : list the device tree in dtb file.\n");
     asyn_uart_puts("---------------------Other---------------------\n");
@@ -115,49 +109,6 @@ void slab_alloc_test (size_t sz) {
     return;
 }
 
-void exec (cpio_header_t *header, char *file_name)
-{
-    void (*prog)();
-    unsigned int current_el;
-    char *stack_top;
-    
-    stack_top = malloc(0x2000);
-    stack_top = stack_top + 0x2000;
-
-    prog = cpio_load(header, file_name);
-
-    if (prog == 0)
-    {
-        asyn_uart_puts("User program not found!\n");
-        return;
-    }
-
-    // Get current EL
-    asm volatile ("mrs %0, CurrentEL" : "=r" (current_el));
-    current_el = current_el >> 2;
-
-    // Print prompt
-    uart_puts("Current EL: 0x");
-    uart_puth(current_el);
-    uart_puts("\n");
-    uart_puts("User program name: ");
-    uart_put('"');
-    uart_puts(file_name);
-    uart_put('"');
-    uart_puts(" (at 0x");
-    uart_puth((unsigned long) prog);
-    uart_puts(")");
-    uart_puts("\n");
-    uart_puts("User program stack top: 0x");
-    uart_puth((unsigned long) stack_top);
-    uart_puts("\n");
-    uart_puts("-----------------Entering user program-----------------\n");
-
-    from_EL1_to_EL0((unsigned long)prog, (unsigned long)stack_top);
-
-    return;
-}
-
 void setTimeout (char *msg, char *ascii_after) {
 
     char *data;
@@ -172,7 +123,7 @@ void setTimeout (char *msg, char *ascii_after) {
     }
 
     /* Copy message into data buffer */
-    data = malloc(len + 2);
+    data = kmalloc(len + 2);
 
     for (i = 0; i < len; i++)
     {
@@ -185,6 +136,23 @@ void setTimeout (char *msg, char *ascii_after) {
 
     /* Add timer task */
     add_timer(uart_puts, data, after);
+
+    return;
+}
+
+void load (char *file_name) {
+
+    void (*prog)();
+            
+    prog = cpio_load(CPIO_BASE, file_name);
+
+    if (prog == 0)
+    {
+        uart_puts("User program not found!\n");
+        return;
+    }
+
+    thread_exec(prog);
 
     return;
 }
@@ -481,15 +449,15 @@ void do_cmd (char *cmd) {
     {
         fdt_traverse((struct fdt_header *)DTB_BASE, lsdev_callback);
     }
-    else if ( strcmp(argv[0], "exec") == 0 )
+    else if ( strcmp(argv[0], "load") == 0 )
     {
         if (argc < 2) 
         {
-            asyn_uart_puts("Usage: exec <file name>\n");
+            asyn_uart_puts("Usage: load <file name>\n");
         }
         else
         {
-            exec((cpio_header_t *)CPIO_BASE, argv[1]);
+            load(argv[1]);
         }
     }
     else if ( strcmp(argv[0], "setTimeout") == 0 )
@@ -502,6 +470,14 @@ void do_cmd (char *cmd) {
         {
             setTimeout(argv[1], argv[2]);
         }
+    }
+    else if ( strcmp(argv[0], "thread_test") == 0 )
+    {
+        thread_test();
+    }
+    else if ( strcmp(argv[0], "fork_test") == 0 )
+    {
+        thread_exec(fork_test);
     }
     else 
     {
@@ -516,17 +492,6 @@ void do_cmd (char *cmd) {
 void shell_start () {
 
     char cmd[CMD_BUF_SIZE];
-
-    // System init
-    asyn_uart_init();
-    cpio_init();
-
-    // Reserve memory
-    unsigned int dtb_size = SWAP_UINT32(((struct fdt_header *)DTB_BASE)->totalsize);
-    memory_reserve(0x0000, 0x1000);                // Spin tables for multicore boot
-    memory_reserve(kernel_start, kernel_end);      // Kernel image
-    memory_reserve(CPIO_BASE, CPIO_BASE + 8192);   // initramfs 8KB
-    memory_reserve(DTB_BASE, DTB_BASE + dtb_size); // dtb 8KB
 
     // Print prompt
     clear();

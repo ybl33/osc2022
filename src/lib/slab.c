@@ -136,6 +136,7 @@ void kmem_cache_free(kmem_cache_t *cache, void *object) {
     {
         slab = _get_slab(object);
         slab->inuse -= 1;
+        list_push(&cache->free_list, (list_t *)object);
 
         log_puts("[kmem cache free] slab->inuse: ", SLAB_LOG_ON);
         log_putu(slab->inuse, SLAB_LOG_ON);
@@ -143,6 +144,8 @@ void kmem_cache_free(kmem_cache_t *cache, void *object) {
 
         if (slab->inuse == 0)
         {
+            list_init(&cache->free_list);
+            
             // Entire page is free, return it back
             page = _get_page(object);
             free_page(page);
@@ -213,6 +216,8 @@ void *kmalloc (unsigned int size) {
     void *ptr = NULL;
     unsigned int index;
 
+    set_interrupt(false);
+
     if (kmalloc_caches == NULL)
     {
         kmalloc_init();
@@ -236,6 +241,8 @@ void *kmalloc (unsigned int size) {
 
     }
 
+    set_interrupt(true);
+
     return ptr;
 }
 
@@ -244,10 +251,14 @@ void kfree (void *object) {
     kmem_slab_t  *slab;
     kmem_cache_t *cache;
 
+    set_interrupt(false);
+
     slab = _get_slab(object);
     cache = slab->cache;
     
     kmem_cache_free(cache, object);
+
+    set_interrupt(true);
 
     return;
 }

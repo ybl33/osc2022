@@ -4,9 +4,10 @@
 #include "uart.h"
 #include "string.h"
 #include "heap.h"
+#include "buddy.h"
 
 /* CPIO new ASCII header */
-typedef struct cpio_header_t {
+typedef struct cpio_header {
     char	   c_magic[6];
     char	   c_ino[8];
     char	   c_mode[8];

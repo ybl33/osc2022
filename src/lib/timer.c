@@ -10,7 +10,7 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
     c_time = time();
     
     /* Create nww timer task */
-    new_task = malloc(sizeof(struct timer_task));
+    new_task = kmalloc(sizeof(struct timer_task));
     new_task->execute_time = c_time + after;
     new_task->callback     = callback;
     new_task->data         = data;
@@ -23,7 +23,7 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
         timer_task_list = new_task;
         
         /* Set timeout first */
-        set_timeout(after);
+        set_timeout_by_ticks(after);
 
         /* Enable core timer interrupt */
         set_timer_interrupt(true);
@@ -63,19 +63,19 @@ void add_timer (void (*callback) (), void *data, unsigned int after) {
             timer_task_list = new_task;
 
             /* Update timeout */
-            set_timeout(after);
+            set_timeout_by_ticks(after);
         }
 
     }
 
     /* Print prompt */
-    uart_puts("[ ");
-    uart_putu(c_time);
-    uart_puts(" secs ] Timer task will be execute ");
-    uart_putu(after);
-    uart_puts(" secs later. (at ");
-    uart_putu(new_task->execute_time);
-    uart_puts(" secs)\n");
+    // uart_puts("[ ");
+    // uart_putu(c_time);
+    // uart_puts(" secs ] Timer task will be execute ");
+    // uart_putu(after);
+    // uart_puts(" secs later. (at ");
+    // uart_putu(new_task->execute_time);
+    // uart_puts(" secs)\n");
 
     return;
 }
@@ -86,6 +86,21 @@ void set_timeout (unsigned int seconds) {
     asm volatile ("mrs x2, cntfrq_el0");
     asm volatile ("mul x1, x2, %0" :: "r"(seconds));
     asm volatile ("msr cntp_tval_el0, x1");
+
+    return;
+}
+
+void set_timeout_by_ticks (unsigned int ticks) {
+
+    unsigned long cntpct_el0;
+    unsigned long cntp_cval_el0;
+
+    asm volatile("mrs %0,  cntpct_el0" : "=r"(cntpct_el0) : );
+
+    cntp_cval_el0 = cntpct_el0 + ticks;
+
+    // Set next expire time
+    asm volatile ("msr cntp_cval_el0, %0" :: "r"(cntp_cval_el0));
 
     return;
 }

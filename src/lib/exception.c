@@ -3,14 +3,51 @@
 /* Exception list */
 struct exception_task *exception_task_list = NULL;
 
+void log_el1_status () {
+    
+    unsigned long esr_el1;
+    unsigned long elr_el1;
+    unsigned long spsr_el1;
+
+    // Get EL1 registers
+    asm volatile("mrs %0,  esr_el1" : "=r"(esr_el1) : );
+    asm volatile("mrs %0,  elr_el1" : "=r"(elr_el1) : );
+    asm volatile("mrs %0, spsr_el1" : "=r"(spsr_el1) : );
+
+    uart_puts("ESR_EL1 : 0x");
+    uart_puth(esr_el1);
+    uart_puts("\n");
+    uart_puts("ELR_EL1 : 0x");
+    uart_puth(elr_el1);
+    uart_puts("\n");
+    uart_puts("SPSR_EL1: 0x");
+    uart_puth(spsr_el1);
+    uart_puts("\n");
+    uart_puts("----------------------------\n");
+
+    return;
+}
+
+unsigned int interrupt_lock = 0;
+
 void set_interrupt (bool enable) {
 
     if (enable)
     {
-        asm volatile ("msr DAIFClr, 0xf");
+        if (interrupt_lock > 0)
+        {
+            interrupt_lock--;
+        }
+        
+        if (interrupt_lock == 0)
+        {
+            asm volatile ("msr DAIFClr, 0xf");
+        }
+        
     }
     else
     {
+        interrupt_lock++;
         asm volatile ("msr DAIFSet, 0xf");
     }
 
@@ -33,8 +70,6 @@ void set_timer_interrupt (bool enable) {
     }
     else
     {
-        asm volatile ("mov x0, 0");
-        asm volatile ("msr cntp_ctl_el0, x0");  
         // mask timer interrupt
         asm volatile ("mov x0, 0");
         asm volatile ("ldr x1, =0x40000040");
@@ -59,32 +94,63 @@ void set_aux_int (bool enable) {
     return;
 }
 
-void syn_handler () {
+void syn_handler (trap_frame_t* trap_frame) {
 
-    unsigned long esr_el1;
-    unsigned long elr_el1;
-    unsigned long spsr_el1;
+    unsigned int svc = trap_frame->regs[8];
+    unsigned int ret;
 
-    // Get EL1 registers
-    asm volatile("mrs %0,  esr_el1" : "=r"(esr_el1) : );
-    asm volatile("mrs %0,  elr_el1" : "=r"(elr_el1) : );
-    asm volatile("mrs %0, spsr_el1" : "=r"(spsr_el1) : );
+    set_interrupt(true);
 
-    uart_puts("ESR_EL1 : 0x");
-    uart_puth(esr_el1);
-    uart_puts("\n");
-    uart_puts("ELR_EL1 : 0x");
-    uart_puth(elr_el1);
-    uart_puts("\n");
-    uart_puts("SPSR_EL1: 0x");
-    uart_puth(spsr_el1);
-    uart_puts("\n");
-    uart_puts("----------------------------\n");
+    switch (svc) {
+        case 0:
+            ret = get_pid();
+            trap_frame->regs[0] = ret;
+            break;
+        case 1:
+            ret = uart_read((char *)trap_frame->regs[0], trap_frame->regs[1]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 2:
+            ret = uart_write((char *)trap_frame->regs[0], trap_frame->regs[1]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 3:
+            ret = exec(trap_frame, (char *)trap_frame->regs[0], (char **)trap_frame->regs[1]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 4:
+            ret = thread_fork(trap_frame);
+            break;
+        case 5:
+            exit();
+            break;
+        case 6:
+            ret = mbox_call((mail_t *)trap_frame->regs[1], (unsigned char)trap_frame->regs[0]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 7:
+            kill(trap_frame->regs[0]);
+            break;
+        case 8:
+            thread_signal_register(trap_frame->regs[0], trap_frame->regs[1]);
+            break;
+        case 9:
+            thread_signal_kill(trap_frame->regs[0], trap_frame->regs[1]);
+            break;
+        case 10:
+            thread_signal_return();
+            break;
+        default:
+            uart_puts("[syn_handler] Unsupported svc: ");
+            uart_puth(svc);
+            uart_puts("\n");
+            break;
+    }
 
     return;
 }
 
-void irq_handler () {
+void irq_handler (trap_frame_t* trap_frame) {
 
     /* IRQ Source */
     unsigned int is_timer_irq;
@@ -109,6 +175,7 @@ void irq_handler () {
     /* Analysis IRQ source */
     if (is_timer_irq)
     {
+
         handler  = timer_irq_handler;
         priority = TIMER_IRQ_PRIO;
 
@@ -129,7 +196,7 @@ void irq_handler () {
     {
 
         /* Construct new task */
-        new_task = malloc(sizeof(struct exception_task));
+        new_task = kmalloc(sizeof(struct exception_task));
         new_task->priority  = priority;
         new_task->handler   = handler;
         new_task->next_task = NULL;
@@ -176,6 +243,7 @@ void irq_handler () {
             prev->next_task = new_task;
 
         }
+
     }
 
     /* Exit critical section */
@@ -187,22 +255,31 @@ void irq_handler () {
 
         done_all_task = false;
 
-        while (!done_all_task) {
+        struct exception_task *curr_task;
+        void (*next_task) ();
 
-            /* Execute handler with interrupt enabled */
-            handler();
+        while (!done_all_task) {
 
             /* Do the rest */
             set_interrupt(false);
+            curr_task = exception_task_list;
             exception_task_list = exception_task_list->next_task;
             done_all_task       = (exception_task_list == NULL);
 
             if (!done_all_task)
             {
-                handler = exception_task_list->handler;
+                next_task = exception_task_list->handler;
             }
+            
+            kfree(curr_task);
 
             set_interrupt(true);
+            
+            /* Execute handler with interrupt enabled */
+            handler();
+
+            handler = next_task;
+
 
         };
 
@@ -211,21 +288,14 @@ void irq_handler () {
     /* Preemption, execute handler immediately */
     if (is_preemption)
     {
-        uart_puts("\n\n");
-        uart_puts("+-------------------+\n");
-        uart_puts("| Preemption occur! |\n");
-        uart_puts("+-------------------+\n");
-        uart_puts("Continue (y) ?\n");
-        while (uart_get() != 'y') /* Wait for 'y' */ ;
-        uart_puts("\n\n");
-
         
         handler();
 
         set_interrupt(false);
         exception_task_list = exception_task_list->next_task;
         set_interrupt(true);
-    }
+        
+    }   
 
     return;
 }
@@ -280,19 +350,21 @@ void uart_irq_handler () {
 void timer_irq_handler () {
 
     unsigned long c_time, after;
+    struct timer_task *curr_task;
 
     c_time = time();
 
     /* Print prompt */
-    uart_puts("\n\n");
-    uart_puts("[ ");
-    uart_putu(c_time);
-    uart_puts(" secs ] Timer irq occur, execute pre-scheduled task.");
-    uart_puts("\n\n");
+    // uart_puts("\n\n");
+    // uart_puts("[ ");
+    // uart_putu(c_time);
+    // uart_puts(" secs ] Timer irq occur, execute pre-scheduled task.");
+    // uart_puts("\n\n");
 
     /* Do callback */
+    curr_task = timer_task_list;
     timer_task_list->callback(timer_task_list->data);
-    timer_task_list = timer_task_list->next_task; // TO DO: free the memory space
+    timer_task_list = timer_task_list->next_task;
 
     /* Update timeout or disable timer interrupt */
     if (timer_task_list == NULL)
@@ -312,11 +384,16 @@ void timer_irq_handler () {
         }
 
         /* Set next timeout */
-        set_timeout(after);
+        set_timeout_by_ticks(after);
 
         /* Enable the timer interrupt */
         set_timer_interrupt(true);
+
     }
+
+    kfree(curr_task);
+
+    thread_schedule();
 
     return;
 }

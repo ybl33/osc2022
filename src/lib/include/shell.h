@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "buddy.h"
 #include "slab.h"
+#include "syscall.h"
 #define CMD_BUF_SIZE 32
 #define MAX_ARG_NUM  4
 void print_system_info();

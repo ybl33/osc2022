@@ -18,6 +18,8 @@ LIB_SRC = \
 	$(LIB_SRC_DIR)/utils.c \
 	$(LIB_SRC_DIR)/exception.c \
 	$(LIB_SRC_DIR)/timer.c \
+	$(LIB_SRC_DIR)/thread.c \
+	$(LIB_SRC_DIR)/syscall.c \
 
 LIB_INCLUDES = \
 	-I $(LIB_SRC_DIR)/include \
@@ -124,10 +126,10 @@ $(BUILD_DIRECTORIES):
 
 # QEMU
 qemu: all
-	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -display none -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio
+	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -display none -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio -S -s
+	qemu-system-aarch64 -M raspi3b -kernel $(OUT_IMG) -initrd $(CPIO_FILE) -dtb $(DTB_FILE) -serial null -serial stdio -S -s
 
 clean:
 	rm -rf *.elf

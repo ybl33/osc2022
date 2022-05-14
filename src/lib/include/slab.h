@@ -4,10 +4,11 @@
 #include "heap.h"
 #include "buddy.h"
 #include "list.h"
+#include "exception.h"
 #include "log.h"
 
 #define SLAB_ARCH_ALIGN (8)
-#define SLAB_LOG_ON     (1)
+#define SLAB_LOG_ON     (0)
 
 struct kmem_cache_t;
 struct kmem_slab_t;

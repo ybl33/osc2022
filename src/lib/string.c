@@ -209,12 +209,10 @@ unsigned long htoin (char *s, unsigned int n) {
 
     if (*s == '0')
     {
-
-        s++;
         
         if (*s == 'x' || *s == 'X')
         {
-            s++;
+            s++; s++;
         }
 
     }
@@ -252,11 +250,9 @@ unsigned long htoi (char *s) {
     if (*s == '0')
     {
 
-        s++;
-
         if (*s == 'x' || *s == 'X')
         {
-            s++;
+            s++; s++;
         }
 
     }

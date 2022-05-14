@@ -5,6 +5,9 @@
 #include "mmio.h"
 #include "uart.h"
 #include "timer.h"
+#include "thread.h"
+#include "syscall.h"
+#include "mbox.h"
 
 #define CORE_0_TIMER_INT_CTL (0x40000040)
 #define CORE_0_IRQ_SOURCE    (0x40000060)
@@ -29,6 +32,13 @@
 #define TIMER_IRQ_PRIO       (0)
 #define UART_IRQ_PRIO        (1)
 
+typedef struct trap_frame {
+    unsigned long regs[31];
+    unsigned long spsr_el1;
+    unsigned long elr_el1;
+    unsigned long sp_el0;
+} trap_frame_t;
+
 struct exception_task {
 
     unsigned int priority;
@@ -42,8 +52,8 @@ extern struct exception_task *exception_task_list;
 void set_interrupt(bool enable);
 void set_timer_interrupt(bool enable);
 void set_aux_int(bool enable);
-void syn_handler();
-void irq_handler();
+void syn_handler(trap_frame_t* trap_frame);
+void irq_handler(trap_frame_t* trap_frame);
 void undefined_handler();
 void uart_irq_handler();
 void timer_irq_handler();

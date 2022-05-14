@@ -3,6 +3,7 @@
 #include "stddef.h"
 #include "list.h"
 #include "heap.h"
+#include "exception.h"
 #include "log.h"
 
 // From 0x10000000 to 0x20000000
@@ -17,7 +18,7 @@
 #define BUDDY_FREE            (0x0)
 #define BUDDY_USED            (0x1)
 
-#define BUDDY_LOG_ON          (1)
+#define BUDDY_LOG_ON          (0)
 
 typedef struct page_status_t {
     unsigned char flag;

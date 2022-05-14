@@ -125,7 +125,7 @@ void *cpio_load (cpio_header_t *header, char *file_name) {
         current_header = next_header;
         if (strcmp(file_name, header_file_name) == 0) 
         {
-            prog_base = malloc(file_size);
+            prog_base = alloc_pages((file_size + BUDDY_PAGE_SIZE - 1) / BUDDY_PAGE_SIZE);
 
             for (int i = 0; i < file_size; i++) 
             {

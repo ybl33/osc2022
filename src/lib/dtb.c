@@ -85,7 +85,7 @@ void fdt_traverse (struct fdt_header *fdt, void (*callback) ()) {
 }
 
 void lsdev_callback (void *fdt) {
-    char* struct_prt;
+    char* struct_ptr;
     char* string_ptr;
     unsigned int state;
     unsigned int bytes;
@@ -93,16 +93,16 @@ void lsdev_callback (void *fdt) {
     char *property;
     struct fdt_prop prop;
 
-    struct_prt = (char *)fdt;
+    struct_ptr = (char *)fdt;
     string_ptr = (char *)fdt_strings;
-    state      = *(unsigned int *)struct_prt;
+    state      = *(unsigned int *)struct_ptr;
     bytes      = 0;
 
-    struct_prt += 4;
+    struct_ptr += 4;
 
     if (state == FDT_BEGIN_NODE)
     {
-        node_name = struct_prt;
+        node_name = struct_ptr;
         bytes = strlen(node_name);
         
         if (bytes != 0)
@@ -116,12 +116,12 @@ void lsdev_callback (void *fdt) {
     } 
     else if (state == FDT_PROP)
     {
-        prop.len     = SWAP_UINT32(*(unsigned int *)struct_prt);
-        struct_prt += 4;
-        prop.nameoff = SWAP_UINT32(*(unsigned int *)struct_prt);
-        struct_prt += 4;
+        prop.len     = SWAP_UINT32(*(unsigned int *)struct_ptr);
+        struct_ptr += 4;
+        prop.nameoff = SWAP_UINT32(*(unsigned int *)struct_ptr);
+        struct_ptr += 4;
 
-        property = struct_prt;
+        property = struct_ptr;
         bytes    = prop.len;
 
         print_level(level);
@@ -144,27 +144,27 @@ void lsdev_callback (void *fdt) {
 }
 
 void initramfs_callback (void *fdt) {
-    char* struct_prt;
+    char* struct_ptr;
     char* string_ptr;
     unsigned int state;
     char *property;
     struct fdt_prop prop;
 
-    struct_prt = (char *)fdt;
+    struct_ptr = (char *)fdt;
     string_ptr = (char *)fdt_strings;
-    state      = *(unsigned int *)struct_prt;
+    state      = *(unsigned int *)struct_ptr;
 
-    struct_prt += 4;
+    struct_ptr += 4;
 
     if (state == FDT_PROP)
     {
 
-        prop.len     = SWAP_UINT32(*(unsigned int *)struct_prt);
-        struct_prt += 4;
-        prop.nameoff = SWAP_UINT32(*(unsigned int *)struct_prt);
-        struct_prt += 4;
+        prop.len     = SWAP_UINT32(*(unsigned int *)struct_ptr);
+        struct_ptr += 4;
+        prop.nameoff = SWAP_UINT32(*(unsigned int *)struct_ptr);
+        struct_ptr += 4;
 
-        property = struct_prt;
+        property = struct_ptr;
 
         if ( strcmp(&string_ptr[prop.nameoff], "linux,initrd-start") == 0 )
         {

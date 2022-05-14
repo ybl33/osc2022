@@ -18,10 +18,15 @@ void buddy_status_init () {
 
 unsigned int page_num_to_order (unsigned int page_num) {
 
-    unsigned int order;
+    unsigned int order = 0;
 
-    // log2(page_num)
-    order = (sizeof(int) * 8 - __builtin_clz(page_num) - 1);
+    // clog2(page_num)
+    page_num = page_num - 1;
+    while (page_num > 0)
+    {
+        order = order + 1;
+        page_num = page_num >> 1;
+    }
 
     return order;
 }
@@ -152,6 +157,8 @@ void *alloc_pages (unsigned int page_num) {
     unsigned int index, buddy_index;
     void *ptr = NULL;
 
+    set_interrupt(false);
+
     if (free_lists == NULL)
     {
         buddy_free_list_init();
@@ -210,6 +217,8 @@ void *alloc_pages (unsigned int page_num) {
 
     dump_buddy_free_lists();
 
+    set_interrupt(true);
+
     return ptr;
 }
 
@@ -219,6 +228,8 @@ void free_page (void *addr) {
     unsigned int index;
     unsigned int order;
     
+    set_interrupt(false);
+
     if ((unsigned long)addr < BUDDY_BASE_ADDR || (unsigned long)addr > (BUDDY_BASE_ADDR + BUDDY_SIZE))
     {
         return;
@@ -260,6 +271,8 @@ void free_page (void *addr) {
     log_putu(order, BUDDY_LOG_ON);
     log_puts(".\n", BUDDY_LOG_ON);
     dump_buddy_free_lists();
+
+    set_interrupt(true);
 
     return;
 }
