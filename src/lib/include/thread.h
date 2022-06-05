@@ -5,9 +5,10 @@
 #include "stddef.h"
 #include "cpio.h"
 #include "log.h"
+#include "mmu.h"
 
 #define THREAD_MAX_NUM               (32)
-#define THREAD_STACK_SIZE            (4096 * 4)
+#define THREAD_STACK_SIZE            (4096)
 #define THREAD_IDLE                  (0)
 #define THREAD_RUNNING               (1)
 #define THREAD_WAIT                  (2)
@@ -15,6 +16,10 @@
 #define THREAD_MAX_SIG_NUM           (16)
 
 #define THREAD_LOG_ON                (0)
+
+#define USER_PROG_VA                 (0x0)
+#define USER_STACK_VA                (0xFFFFFFFFD000)
+#define KERNEL_STACK_VA              (0xFFFFFFFFE000)
 
 struct thread;
 
@@ -48,12 +53,15 @@ typedef struct thread {
     unsigned long kernel_stack;
     unsigned long user_stack;
     unsigned int status;
+    unsigned int code_size;
 
     // For POSIX Signal
     thread_context_t signal_save_context;
 
     void (*signal_handlers[THREAD_MAX_SIG_NUM]) ();
     unsigned int signal_num[THREAD_MAX_SIG_NUM];
+
+    unsigned long *pgd;
 
     struct thread *next;
 
@@ -71,7 +79,7 @@ typedef struct trap_frame trap_frame_t;
 thread_t* get_current_thread();
 pid_t thread_get_pid();
 thread_t* thread_create( void (*func) () );
-void thread_exec (void (*prog)());
+void thread_exec(char *file_name);
 void thread_schedule();
 void thread_kill(pid_t pid);
 pid_t thread_fork(trap_frame_t* trap_frame);

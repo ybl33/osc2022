@@ -140,23 +140,6 @@ void setTimeout (char *msg, char *ascii_after) {
     return;
 }
 
-void load (char *file_name) {
-
-    void (*prog)();
-            
-    prog = cpio_load(CPIO_BASE, file_name);
-
-    if (prog == 0)
-    {
-        uart_puts("User program not found!\n");
-        return;
-    }
-
-    thread_exec(prog);
-
-    return;
-}
-
 //-----------------------------------------------------------------
 
 void put_left () {
@@ -457,7 +440,7 @@ void do_cmd (char *cmd) {
         }
         else
         {
-            load(argv[1]);
+            thread_exec(argv[1]);
         }
     }
     else if ( strcmp(argv[0], "setTimeout") == 0 )
@@ -470,14 +453,6 @@ void do_cmd (char *cmd) {
         {
             setTimeout(argv[1], argv[2]);
         }
-    }
-    else if ( strcmp(argv[0], "thread_test") == 0 )
-    {
-        thread_test();
-    }
-    else if ( strcmp(argv[0], "fork_test") == 0 )
-    {
-        thread_exec(fork_test);
     }
     else 
     {

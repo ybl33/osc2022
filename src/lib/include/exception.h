@@ -9,8 +9,8 @@
 #include "syscall.h"
 #include "mbox.h"
 
-#define CORE_0_TIMER_INT_CTL (0x40000040)
-#define CORE_0_IRQ_SOURCE    (0x40000060)
+#define CORE_0_TIMER_INT_CTL (0x40000040 + 0xFFFF000000000000)
+#define CORE_0_IRQ_SOURCE    (0x40000060 + 0xFFFF000000000000)
 #define CORE_IRQ_CNTPNS      (1 << 1)
 /* Interrupt Registers */
 #define INT_BASE             (MMIO_BASE + 0x0000B000)

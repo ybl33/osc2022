@@ -2,7 +2,7 @@ __heap_size  = 0x00200000;
 
 SECTIONS
 {
-    . = 0x80000;
+    . = 0xffff000000000000 + 0x80000;
 
     __start = .;
     

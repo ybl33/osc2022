@@ -12,6 +12,7 @@ LIB_SRC = \
 	$(LIB_SRC_DIR)/heap.c \
 	$(LIB_SRC_DIR)/mbox.c \
 	$(LIB_SRC_DIR)/mmio.c \
+	$(LIB_SRC_DIR)/mmu.c \
 	$(LIB_SRC_DIR)/shell.c \
 	$(LIB_SRC_DIR)/string.c \
 	$(LIB_SRC_DIR)/uart.c \
@@ -34,7 +35,7 @@ APP_SRC = \
 	$(APP_SRC_DIR)/kernel.c \
 
 APP_ASM = \
-	$(APP_SRC_DIR)/boot.s \
+	$(APP_SRC_DIR)/boot.S \
 
 APP_INCLUDES = \
 	-I ./ \
@@ -42,7 +43,7 @@ APP_INCLUDES = \
 
 APP_BUILD_DIR = $(BUILD_DIR)/app
 APP_OBJS := $(patsubst %.c,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_SRC)))
-APP_OBJS += $(patsubst %.s,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
+APP_OBJS += $(patsubst %.S,$(APP_BUILD_DIR)/%.o,$(notdir $(APP_ASM)))
 
 VPATH += \
 	$(LIB_SRC_DIR) \
@@ -89,7 +90,7 @@ $(APP_BUILD_DIR)/%.o : %.c
 	$(CC) $(CCFLAGS) $(APP_INCLUDES) -o $@ -c $<
 	@echo "Finished Building: $<"
 
-$(APP_BUILD_DIR)/%.o : %.s
+$(APP_BUILD_DIR)/%.o : %.S
 	@echo "[APP Objects] : $@ -----------------------------------------"
 	@echo "Building: $<"
 	$(CC) $(ASMFLAGS) $(APP_INCLUDES) -o $@ -c $<

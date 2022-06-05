@@ -31,16 +31,28 @@ size_t uart_write (const char buf[], size_t size) {
 
 int exec (trap_frame_t *trap_frame, char* name, char **argv) {
 
-    cpio_header_t *header = (cpio_header_t *)CPIO_BASE;
     thread_t *curr_thread = get_current_thread();
-    void (*prog)();
+    unsigned long prog_addr;
+    unsigned int prog_size;
 
-    prog = cpio_load(header, name);
+    cpio_load(name, &prog_addr, &prog_size);
 
-    curr_thread->code_addr = (unsigned long)prog;
+    if (prog_size == 0)
+    {
+        uart_puts("User program not found!\n");
+        return 1;
+    }
 
-    trap_frame->sp_el0  = (unsigned long)(curr_thread + THREAD_STACK_SIZE);
-    trap_frame->elr_el1 = (unsigned long)prog;
+    for (int i = 0; i < prog_size; i += PAGE_TABLE_SIZE)
+    {
+        unsigned long va = USER_PROG_VA + i;
+        unsigned long pa = va_to_pa(prog_addr + i);
+
+        alloc_page_table(curr_thread->pgd, va, pa, PD_USER_ATTR);
+    }
+
+    trap_frame->sp_el0  = (unsigned long)(USER_STACK_VA + THREAD_STACK_SIZE);
+    trap_frame->elr_el1 = (unsigned long)USER_PROG_VA;
 
     return 0;
 }

@@ -7,8 +7,8 @@
 #include "log.h"
 
 // From 0x10000000 to 0x20000000
-#define BUDDY_BASE_ADDR       (0x00000000)
-#define BUDDY_SIZE            (0x3C000000)
+#define BUDDY_BASE_ADDR       (0xFFFF000000000000)
+#define BUDDY_SIZE            (0x30000000)
 
 // Block size from 4KB to 128 MB
 #define BUDDY_ORDER_NUM       (16)

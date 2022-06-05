@@ -132,8 +132,8 @@ void memory_reserve(unsigned long start, unsigned long end) {
         buddy_status_init();
     }
 
-    unsigned long start_page_idx = start / BUDDY_PAGE_SIZE;
-    unsigned long end_page_idx   = (end + BUDDY_PAGE_SIZE - 1) / BUDDY_PAGE_SIZE;
+    unsigned long start_page_idx = (start - BUDDY_BASE_ADDR) / BUDDY_PAGE_SIZE;
+    unsigned long end_page_idx   = (end - BUDDY_BASE_ADDR + BUDDY_PAGE_SIZE - 1) / BUDDY_PAGE_SIZE;
 
     for (int i = start_page_idx; i < end_page_idx; i++)
     {
@@ -282,6 +282,8 @@ void dump_buddy_free_lists () {
 
     list_t *head, *ptr;
 
+    set_interrupt(false);
+
     log_puts("+-----------------------------\n", BUDDY_LOG_ON);
     log_puts("| Buddy system free lists\n", BUDDY_LOG_ON);
 
@@ -313,6 +315,8 @@ void dump_buddy_free_lists () {
     }
 
     log_puts("+-----------------------------\n", BUDDY_LOG_ON);
+
+    set_interrupt(true);
 
     return;
 }

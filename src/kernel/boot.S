@@ -1,9 +1,11 @@
+#include "mmu_def.h"
 
 .section ".text.boot"
 
 .global _start
 
 _start:
+    mov     x10, x0
     // read cpu id, stop slave cores
     mrs     x1, mpidr_el1
     and     x1, x1, 3
@@ -20,6 +22,7 @@ get_current_EL:
     bne     hang
     // switch from EL2 to EL1
     bl      from_EL2_to_EL1
+    bl      setup_vmem
 
 set_exception_vector_table:
     adr     x1, exception_vector_table
@@ -41,6 +44,9 @@ clear_bss_loop:
     cbnz    x2, clear_bss_loop
 
 run_main:
+    mov     x0, x10
+    ldr     x1, =0xffff000000000000
+	add     x0, x0, x1
     // jump to kernel, should not return
     bl      main
     // for failsafe, halt this core too
@@ -214,6 +220,13 @@ switch_to:
     ldr x9, [x1, 16 * 6]
     mov sp,  x9
     msr tpidr_el1, x2
+
+    dsb ish                              // ensure write has completed
+    msr ttbr0_el1, x3                    // switch translation based address.
+    tlbi vmalle1is                       // invalidate all TLB entries
+    dsb ish                              // ensure completion of TLB invalidatation
+    isb                                  // clear pipeline
+
     ret
 
 .global store_context
@@ -294,4 +307,84 @@ sys_kill:
 sys_ret:
     mov x8, 10
     svc 0
+    ret
+
+setup_vmem:
+    ldr x1, = TCR_CONFIG_DEFAULT
+    msr tcr_el1, x1
+
+    ldr x1, =MAIR_CONFIG
+    msr mair_el1, x1
+
+    ldr x0, =PGD_BASE // PGD's page frame addr
+    ldr x1, =PUD_BASE // PUD's page frame addr
+    ldr x2, =PMD_BASE // PMD's page frame addr, have two PMD table
+    ldr x3, =PTE_BASE // PTE's page frame addr
+    
+    msr ttbr0_el1, x0 // load PGD to the bottom translation-based register.
+    msr ttbr1_el1, x0 // also load PGD to the upper translation based register.
+
+    // set PGD
+    ldr x4, = BOOT_PGD_ATTR
+    orr x4, x1, x4                      // combine the physical address of next level page with attribute.
+    str x4, [x0]
+
+    // set 1st entry of PUD 
+    ldr x4, = BOOT_PUD_ATTR
+    mov x5, x2
+    orr x6, x5, x4                      // combine the physical address of next level page with attribute.
+    str x6, [x1]
+    // set 2nd entry of PUD 
+    add x5, x5, #0x1000
+    orr x6, x5, x4
+    str x6, [x1, 8]
+
+    // set PMD
+    ldr x4, = BOOT_PMD_ATTR
+    mov x5, x2                          // addr of PMD
+    mov x6, x3                          // addr of PTE
+    mov x7, #(512 * 2)                  // 2 PMD table, 1024 entries
+setup_pmd:
+    orr x8, x6, x4                      // PTE table | ATTR
+    str x8, [x5]
+    add x5, x5, #8                      // next PMD entry
+    add x6, x6, #0x1000                   // next PTE table
+    sub x7, x7, #1
+    cbnz x7, setup_pmd
+
+    // set PTE
+    ldr x4, = BOOT_PTE_RAM_ATTR
+    mov x5, #0x00000000
+    mov x6, x3                          // addr of PTE
+    mov x7, #(1024 * 512)
+    ldr x8, = PERIPHERAL_BASE
+    
+setup_pte_loop:
+    cmp x5, x8
+    blt setup_pte
+    ldr x4, = BOOT_PTE_DEVICE_ATTR
+
+setup_pte:
+    orr x9, x5 ,x4
+    str x9, [x6]                         // 4KB page
+    add x6, x6, #8                       // next PTE entry
+    add x5, x5, #4096                    // next phy page
+    sub x7, x7, #1
+    cbnz x7, setup_pte_loop
+
+    // Enable MMU
+    mrs x2, sctlr_el1
+    orr x2 , x2, 1
+    msr sctlr_el1, x2                    // enable MMU, cache remains disabled
+
+    ldr x2, = set_exception_vector_table // indirect branch to the virtual address
+    br  x2
+
+.global switch_pgd
+switch_pgd:
+    dsb ish                              // ensure write has completed
+    msr ttbr0_el1, x0                    // switch translation based address.
+    tlbi vmalle1is                       // invalidate all TLB entries
+    dsb ish                              // ensure completion of TLB invalidatation
+    isb                                  // clear pipeline
     ret

@@ -2,7 +2,8 @@
 
 extern void store_context(thread_context_t *context);
 extern void load_context(thread_context_t *context);
-extern void switch_to(thread_context_t *curr_context, thread_context_t *next_context, thread_t *next_thread);
+extern void switch_to(unsigned long curr_context, unsigned long next_context, unsigned long next_thread, unsigned long pgd);
+extern void switch_pgd(unsigned long pgd);
 extern void from_EL1_to_EL0(unsigned long prog, unsigned long user_sp, unsigned long kernel_sp);
 thread_queue_t *idle_queue = NULL;
 thread_queue_t *wait_queue = NULL;
@@ -90,7 +91,7 @@ void _thread_init () {
     asm volatile ("msr tpidr_el1, %0" : : "r"(kernel_thread));
 
     pid_inuse[0] = true;
-
+    
     return;
 }
 
@@ -145,6 +146,7 @@ thread_t* thread_create ( void (*func) () ) {
 
     thread_t *new_thread = NULL;
     pid_t pid;
+    unsigned long *pgd;
 
     if (idle_queue == NULL)
     {
@@ -155,23 +157,31 @@ thread_t* thread_create ( void (*func) () ) {
 
     if (pid != -1)
     {
-        new_thread = kmalloc(sizeof(thread_t));
+        pgd = create_page_table();
+        alloc_page_table(pgd, 0x6000, 0, BOOT_PGD_ATTR);
 
+        new_thread               = kmalloc(sizeof(thread_t));
+        new_thread->pgd          = pgd;
         new_thread->pid          = pid;
         new_thread->status       = THREAD_IDLE;
         new_thread->code_addr    = (unsigned long)func;
-        new_thread->kernel_stack = (unsigned long)alloc_pages(4);
-        new_thread->user_stack   = (unsigned long)alloc_pages(4);
+        new_thread->kernel_stack = (unsigned long)alloc_page_table(pgd, KERNEL_STACK_VA, 0, PD_RAM_ATTR);
+        new_thread->user_stack   = (unsigned long)alloc_page_table(pgd, USER_STACK_VA  , 0, PD_USER_ATTR);
 
         new_thread->context.lr = (unsigned long)func;
-        new_thread->context.fp = (unsigned long)new_thread->user_stack + THREAD_STACK_SIZE;
-        new_thread->context.sp = (unsigned long)new_thread->user_stack + THREAD_STACK_SIZE;
+        new_thread->context.fp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->context.sp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
         new_thread->next       = NULL;
 
         for (int i = 0; i < THREAD_MAX_SIG_NUM; i++)
         {
             new_thread->signal_handlers[i] = NULL;
             new_thread->signal_num[i] = 0;
+        }
+
+        for (int i = PERIPHERAL_BASE; i < PERIPHERAL_END; i = i + PAGE_TABLE_SIZE)
+        {
+            alloc_page_table(pgd, i, i, PD_USER_ATTR);
         }
 
         thread_enqueue(idle_queue, new_thread);
@@ -184,11 +194,22 @@ thread_t* thread_create ( void (*func) () ) {
     return new_thread;
 }
 
-void thread_exec (void (*prog)()) {
+void thread_exec (char *file_name) {
 
     thread_t *new_thread = NULL;
     pid_t pid;
     unsigned long current_el;
+    unsigned long *pgd;
+    unsigned long prog_addr;
+    unsigned int prog_size;
+
+    cpio_load(file_name, &prog_addr, &prog_size);
+
+    if (prog_size == 0)
+    {
+        uart_puts("User program not found!\n");
+        return;
+    }
 
     if (idle_queue == NULL)
     {
@@ -199,17 +220,35 @@ void thread_exec (void (*prog)()) {
 
     if (pid != -1)
     {
-        new_thread = kmalloc(sizeof(thread_t));
+        pgd = create_page_table();
+        alloc_page_table(pgd, 0x6000, 0, BOOT_PGD_ATTR);
 
+        for (int i = 0; i < prog_size; i += PAGE_TABLE_SIZE)
+        {
+            unsigned long va = USER_PROG_VA + i;
+            unsigned long pa = va_to_pa(prog_addr + i);
+
+            alloc_page_table(pgd, va, pa, PD_USER_ATTR);
+        }
+
+
+        for (int i = PERIPHERAL_BASE; i < PERIPHERAL_END; i = i + PAGE_TABLE_SIZE)
+        {
+            alloc_page_table(pgd, i, i, PD_USER_ATTR);
+        }
+
+        new_thread               = kmalloc(sizeof(thread_t));
+        new_thread->pgd          = pgd;
         new_thread->pid          = pid;
         new_thread->status       = THREAD_IDLE;
-        new_thread->code_addr    = (unsigned long)prog;
-        new_thread->kernel_stack = (unsigned long)alloc_pages(4);
-        new_thread->user_stack   = (unsigned long)alloc_pages(4);
+        new_thread->code_addr    = (unsigned long)USER_PROG_VA;
+        new_thread->kernel_stack = (unsigned long)alloc_page_table(pgd, KERNEL_STACK_VA, 0, PD_RAM_ATTR);
+        new_thread->user_stack   = (unsigned long)alloc_page_table(pgd, USER_STACK_VA  , 0, PD_USER_ATTR);
+        new_thread->code_size    = prog_size;
 
-        new_thread->context.lr = (unsigned long)prog;
-        new_thread->context.fp = (unsigned long)new_thread->user_stack + THREAD_STACK_SIZE;
-        new_thread->context.sp = (unsigned long)new_thread->user_stack + THREAD_STACK_SIZE;
+        new_thread->context.lr = (unsigned long)USER_PROG_VA;
+        new_thread->context.fp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->context.sp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
         new_thread->next       = NULL;
 
         for (int i = 0; i < THREAD_MAX_SIG_NUM; i++)
@@ -234,7 +273,7 @@ void thread_exec (void (*prog)()) {
         uart_puth(current_el);
         uart_puts("\n");
         uart_puts("User program at: 0x");
-        uart_puth((unsigned long) prog);
+        uart_puth((unsigned long) USER_PROG_VA);
         uart_puts("\n");
         uart_puts("User program stack top: 0x");
         uart_puth((unsigned long) new_thread->context.sp);
@@ -247,7 +286,8 @@ void thread_exec (void (*prog)()) {
         set_uart_tx_int(false);
 
         asm volatile ("msr tpidr_el1, %0" : : "r"(new_thread));
-        from_EL1_to_EL0((unsigned long)prog, (unsigned long)new_thread->user_stack + THREAD_STACK_SIZE, (unsigned long)new_thread->kernel_stack + THREAD_STACK_SIZE);
+        switch_pgd(va_to_pa((unsigned long)new_thread->pgd));
+        from_EL1_to_EL0((unsigned long)USER_PROG_VA, (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE, (unsigned long)KERNEL_STACK_VA + THREAD_STACK_SIZE);
     }
 
     return;
@@ -287,19 +327,31 @@ void thread_schedule () {
 
     if (next_thread != NULL)
     {
-
-        log_puts("[thread_schedule] curr_thread: 0x", THREAD_LOG_ON);
-        log_puth((unsigned long)curr_thread, THREAD_LOG_ON);
-        log_puts(", next_thread: 0x", THREAD_LOG_ON);
-        log_puth((unsigned long)next_thread, THREAD_LOG_ON);
-        log_puts("\n", THREAD_LOG_ON);
-        
         if (curr_thread->pid != 0)
         {
             thread_enqueue(idle_queue, curr_thread);
         }
 
-        switch_to(&curr_thread->context, &next_thread->context, next_thread);
+        log_puts("[thread_schedule] curr_thread: 0x", THREAD_LOG_ON);
+        log_puth((unsigned long)curr_thread>>32, THREAD_LOG_ON);
+        log_puth((unsigned long)curr_thread, THREAD_LOG_ON);
+        log_puts(", next_thread: 0x", THREAD_LOG_ON);
+        log_puth((unsigned long)next_thread>>32, THREAD_LOG_ON);
+        log_puth((unsigned long)next_thread, THREAD_LOG_ON);
+        log_puts(", next_thread->pgd: 0x", THREAD_LOG_ON);
+        log_puth((unsigned long)next_thread->pgd>>32, THREAD_LOG_ON);
+        log_puth((unsigned long)next_thread->pgd, THREAD_LOG_ON);
+        log_puts("\n", THREAD_LOG_ON);
+
+        log_puts("&curr_thread->context: 0x", THREAD_LOG_ON);
+        log_puth((unsigned long)&curr_thread->context>>32, THREAD_LOG_ON);
+        log_puth((unsigned long)&curr_thread->context, THREAD_LOG_ON);
+        log_puts(", &next_thread->context: 0x", THREAD_LOG_ON);
+        log_puth((unsigned long)&next_thread->context>>32, THREAD_LOG_ON);
+        log_puth((unsigned long)&next_thread->context, THREAD_LOG_ON);
+        log_puts("\n", THREAD_LOG_ON);
+
+        switch_to(&curr_thread->context, &next_thread->context, next_thread, va_to_pa((unsigned long)(next_thread->pgd)));
 
     }
 
@@ -360,25 +412,33 @@ pid_t thread_fork (trap_frame_t* trap_frame) {
     thread_t *parent_thread;
     thread_t *child_thread;
     thread_t *curr_thread;
-    trap_frame_t *child_trap_frame;
-
-    unsigned long k_offset, u_offset;
+    unsigned long prog_base;
 
     set_interrupt(false);
 
     parent_thread = get_current_thread();
-    child_thread  = thread_create((void *)parent_thread->code_addr);
-
-    k_offset = (unsigned long)child_thread->kernel_stack - (unsigned long)parent_thread->kernel_stack;
-    u_offset = (unsigned long)child_thread->user_stack - (unsigned long)parent_thread->user_stack;
-    child_trap_frame = (trap_frame_t *)((unsigned long)trap_frame + k_offset);
+    prog_base     = alloc_pages((parent_thread->code_size + BUDDY_PAGE_SIZE - 1) / BUDDY_PAGE_SIZE);
+    child_thread  = thread_create(prog_base);
 
     store_context(&child_thread->context);
     curr_thread = get_current_thread();
 
     if (curr_thread->pid == parent_thread->pid)
     {
-        trap_frame->regs[0] = child_thread->pid;
+        child_thread->code_size = parent_thread->code_size;
+
+        for (int i = 0; i < child_thread->code_size; i++) 
+        {
+            ((char *)prog_base)[i] = ((char *)(parent_thread->code_addr))[i];
+        }
+
+        for (int i = 0; i < child_thread->code_size; i += PAGE_TABLE_SIZE)
+        {
+            unsigned long va = USER_PROG_VA + i;
+            unsigned long pa = va_to_pa(child_thread->code_addr + i);
+
+            alloc_page_table(child_thread->pgd, va, pa, PD_USER_ATTR);
+        }
 
         for (int i = 0; i < THREAD_STACK_SIZE; i++)
         {
@@ -392,15 +452,9 @@ pid_t thread_fork (trap_frame_t* trap_frame) {
             child_thread->signal_num[i] = parent_thread->signal_num[i];
         }
 
-        child_thread->context.sp += k_offset;
-        child_thread->context.fp += k_offset;
-        child_trap_frame->sp_el0 += u_offset;
-        child_trap_frame->regs[0] = 0;
-
+        set_interrupt(true);
         return child_thread->pid;
     }
-
-    set_interrupt(true);
 
     return 0;
 }
@@ -430,8 +484,6 @@ void check_signal () {
     void (*handler) ();
     void *signal_ustack;
     thread_t* thread = get_current_thread();
-
-    unsigned long sp, spsr_el1;
     
     while (1) {
         
@@ -515,7 +567,7 @@ void thread_signal_register (int signal, void (*handler)()) {
     log_puts("[thread_signal_register] signal: ", THREAD_LOG_ON);
     log_putu(signal, THREAD_LOG_ON);
     log_puts(", handler: 0x", THREAD_LOG_ON);
-    log_puth(handler, THREAD_LOG_ON);
+    log_puth((unsigned long)handler, THREAD_LOG_ON);
     log_puts("\n", THREAD_LOG_ON);
 
     return;
@@ -619,7 +671,7 @@ void fork_test () {
         uart_puts(", cnt: ");
         uart_putu(cnt);
         uart_puts(", ptr: 0x");
-        uart_puth(&cnt);
+        uart_puth((unsigned long)&cnt);
         uart_puts(", sp : 0x");
         uart_puth(cur_sp);
         uart_puts("\n");
@@ -634,7 +686,7 @@ void fork_test () {
             uart_puts(", cnt: ");
             uart_putu(cnt);
             uart_puts(", ptr: 0x");
-            uart_puth(&cnt);
+            uart_puth((unsigned long)&cnt);
             uart_puts(", sp : 0x");
             uart_puth(cur_sp);
             uart_puts("\n");
@@ -648,7 +700,7 @@ void fork_test () {
                 uart_puts(", cnt: ");
                 uart_putu(cnt);
                 uart_puts(", ptr: 0x");
-                uart_puth(&cnt);
+                uart_puth((unsigned long)&cnt);
                 uart_puts(", sp : 0x");
                 uart_puth(cur_sp);
                 uart_puts("\n");

@@ -65,14 +65,14 @@ void set_timer_interrupt (bool enable) {
         asm volatile ("msr cntp_ctl_el0, x0");
         // Unmask timer interrupt
         asm volatile ("mov x0, 2");
-        asm volatile ("ldr x1, =0x40000040");
+        asm volatile ("ldr x1, =0xFFFF000040000040");
         asm volatile ("str w0, [x1]");
     }
     else
     {
         // mask timer interrupt
         asm volatile ("mov x0, 0");
-        asm volatile ("ldr x1, =0x40000040");
+        asm volatile ("ldr x1, =0xFFFF000040000040");
         asm volatile ("str w0, [x1]");
     }
 
@@ -120,19 +120,20 @@ void syn_handler (trap_frame_t* trap_frame) {
             break;
         case 4:
             ret = thread_fork(trap_frame);
+            trap_frame->regs[0] = ret;
             break;
         case 5:
             exit();
             break;
         case 6:
-            ret = mbox_call((mail_t *)trap_frame->regs[1], (unsigned char)trap_frame->regs[0]);
+            ret = mbox_call((mail_t *)(trap_frame->regs[1]), (unsigned char)trap_frame->regs[0]);
             trap_frame->regs[0] = ret;
             break;
         case 7:
             kill(trap_frame->regs[0]);
             break;
         case 8:
-            thread_signal_register(trap_frame->regs[0], trap_frame->regs[1]);
+            thread_signal_register(trap_frame->regs[0], (void *)trap_frame->regs[1]);
             break;
         case 9:
             thread_signal_kill(trap_frame->regs[0], trap_frame->regs[1]);
@@ -256,7 +257,7 @@ void irq_handler (trap_frame_t* trap_frame) {
         done_all_task = false;
 
         struct exception_task *curr_task;
-        void (*next_task) ();
+        void (*next_task) () = NULL;
 
         while (!done_all_task) {
 

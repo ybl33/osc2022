@@ -6,7 +6,7 @@
 #if USE_BUS
 #define MMIO_BASE BUS_BASE
 #else
-#define MMIO_BASE PHY_BASE
+#define MMIO_BASE (PHY_BASE + 0xFFFF000000000000)
 #endif
 
 void mmio_put(long addr, unsigned int value);
