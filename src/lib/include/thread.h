@@ -6,6 +6,7 @@
 #include "cpio.h"
 #include "log.h"
 #include "mmu.h"
+#include "vfs.h"
 
 #define THREAD_MAX_NUM               (32)
 #define THREAD_STACK_SIZE            (4096)
@@ -14,6 +15,7 @@
 #define THREAD_WAIT                  (2)
 #define THREAD_EXIT                  (3)
 #define THREAD_MAX_SIG_NUM           (16)
+#define THREAD_FD_TABLE_SIZE         (16)
 
 #define THREAD_LOG_ON                (0)
 
@@ -62,6 +64,8 @@ typedef struct thread {
     unsigned int signal_num[THREAD_MAX_SIG_NUM];
 
     unsigned long *pgd;
+    struct vnode *working_dir;
+    struct file *fd_table;
 
     struct thread *next;
 

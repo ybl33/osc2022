@@ -168,16 +168,28 @@ thread_t* thread_create ( void (*func) () ) {
         new_thread->kernel_stack = (unsigned long)alloc_page_table(pgd, KERNEL_STACK_VA, 0, PD_RAM_ATTR);
         new_thread->user_stack   = (unsigned long)alloc_page_table(pgd, USER_STACK_VA  , 0, PD_USER_ATTR);
 
-        new_thread->context.lr = (unsigned long)func;
-        new_thread->context.fp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
-        new_thread->context.sp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
-        new_thread->next       = NULL;
+        new_thread->context.lr   = (unsigned long)func;
+        new_thread->context.fp   = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->context.sp   = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->next         = NULL;
+        new_thread->working_dir  = rootfs->root;
 
         for (int i = 0; i < THREAD_MAX_SIG_NUM; i++)
         {
             new_thread->signal_handlers[i] = NULL;
             new_thread->signal_num[i] = 0;
         }
+
+        new_thread->fd_table = kmalloc(sizeof(struct file) * THREAD_FD_TABLE_SIZE);
+
+        for (int i = 0; i < THREAD_FD_TABLE_SIZE; i++)
+        {
+            new_thread->fd_table[i].vnode = NULL;
+        }
+
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[0]);
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[1]);
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[2]);
 
         for (int i = PERIPHERAL_BASE; i < PERIPHERAL_END; i = i + PAGE_TABLE_SIZE)
         {
@@ -200,10 +212,22 @@ void thread_exec (char *file_name) {
     pid_t pid;
     unsigned long current_el;
     unsigned long *pgd;
-    unsigned long prog_addr;
+    unsigned long prog_base;
     unsigned int prog_size;
+    struct file prog;
 
-    cpio_load(file_name, &prog_addr, &prog_size);
+    if (vfs_open(file_name, 0, &prog) < 0) 
+    {
+        uart_puts("User program: '");
+        uart_puts(file_name);
+        uart_puts("' not found!\n");
+        return 1;
+    }
+
+    prog_size = prog.vnode->v_ops->getsize(prog.vnode);
+    prog_base = alloc_pages((prog_size + BUDDY_PAGE_SIZE - 1) / BUDDY_PAGE_SIZE);
+    vfs_read(&prog, prog_base, prog_size);
+    
 
     if (prog_size == 0)
     {
@@ -226,7 +250,7 @@ void thread_exec (char *file_name) {
         for (int i = 0; i < prog_size; i += PAGE_TABLE_SIZE)
         {
             unsigned long va = USER_PROG_VA + i;
-            unsigned long pa = va_to_pa(prog_addr + i);
+            unsigned long pa = va_to_pa(prog_base + i);
 
             alloc_page_table(pgd, va, pa, PD_USER_ATTR);
         }
@@ -246,16 +270,28 @@ void thread_exec (char *file_name) {
         new_thread->user_stack   = (unsigned long)alloc_page_table(pgd, USER_STACK_VA  , 0, PD_USER_ATTR);
         new_thread->code_size    = prog_size;
 
-        new_thread->context.lr = (unsigned long)USER_PROG_VA;
-        new_thread->context.fp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
-        new_thread->context.sp = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
-        new_thread->next       = NULL;
+        new_thread->context.lr   = (unsigned long)USER_PROG_VA;
+        new_thread->context.fp   = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->context.sp   = (unsigned long)USER_STACK_VA + THREAD_STACK_SIZE;
+        new_thread->next         = NULL;
+        new_thread->working_dir  = rootfs->root;
 
         for (int i = 0; i < THREAD_MAX_SIG_NUM; i++)
         {
             new_thread->signal_handlers[i] = NULL;
             new_thread->signal_num[i] = 0;
         }
+
+        new_thread->fd_table = kmalloc(sizeof(struct file) * THREAD_FD_TABLE_SIZE);
+
+        for (int i = 0; i < THREAD_FD_TABLE_SIZE; i++)
+        {
+            new_thread->fd_table[i].vnode = NULL;
+        }
+
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[0]);
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[1]);
+        vfs_open("/dev/uart", 0, &new_thread->fd_table[2]);
 
         unsigned long tmp;
         asm volatile("mrs %0, cntkctl_el1" : "=r"(tmp));

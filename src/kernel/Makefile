@@ -21,6 +21,11 @@ LIB_SRC = \
 	$(LIB_SRC_DIR)/timer.c \
 	$(LIB_SRC_DIR)/thread.c \
 	$(LIB_SRC_DIR)/syscall.c \
+	$(LIB_SRC_DIR)/vfs.c \
+	$(LIB_SRC_DIR)/tmpfs.c \
+	$(LIB_SRC_DIR)/uartfs.c \
+	$(LIB_SRC_DIR)/fbfs.c \
+	$(LIB_SRC_DIR)/cpiofs.c \
 
 LIB_INCLUDES = \
 	-I $(LIB_SRC_DIR)/include \
@@ -74,7 +79,7 @@ LINK_FILE = linker.ld
 CPIO_FILE = ../initramfs/initramfs.cpio
 DTB_FILE  = ../devicetree/bcm2710-rpi-3-b-plus.dtb
 
-CCFLAGS = -Wall -O2 -ffreestanding -nostdinc -nostdlib -nostartfiles
+CCFLAGS = -Wall -O2 -ffreestanding -nostdlib -nostartfiles
 LDFLAGS = -T$(LINK_FILE)
 
 .PHONY: clean directories out_elf

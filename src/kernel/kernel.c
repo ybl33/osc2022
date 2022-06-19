@@ -2,6 +2,7 @@
 #include "uart.h"
 #include "buddy.h"
 #include "thread.h"
+#include "vfs.h"
 
 unsigned long DTB_BASE;
 extern unsigned long __start;
@@ -11,12 +12,12 @@ static unsigned long kernel_start = (unsigned long) &__start;
 static unsigned long kernel_end   = (unsigned long) &__end;
 
 void kernel_init () {
-
+    
     // System init
     uart_init();
     asyn_uart_init();
     cpio_init();
-
+    
     // Reserve memory
     unsigned int dtb_size = SWAP_UINT32(((struct fdt_header *)DTB_BASE)->totalsize);
     memory_reserve(0xFFFF000000000000, 0xFFFF000000001000);                // Spin tables for multicore boot
@@ -24,6 +25,7 @@ void kernel_init () {
     memory_reserve(CPIO_BASE, CPIO_BASE + 0x100000);   // initramfs
     memory_reserve(DTB_BASE, DTB_BASE + dtb_size);     // dtb 8KB
 
+    vfs_init();
 }
 
 

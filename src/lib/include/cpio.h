@@ -27,6 +27,9 @@ typedef struct cpio_header {
 #define CPIO_HEADER_MAGIC "070701"
 #define CPIO_FOOTER_MAGIC "TRAILER!!!"
 #define CPIO_HEADER_SIZE  (sizeof(cpio_header_t))
+#define CPIO_MODE_MASK    (0060000)
+#define CPIO_TYPE_DIR     (0040000)
+#define CPIO_TYPE_FILE    (0000000)
 
 unsigned long cpio_align(unsigned long v);
 int cpio_header_parser(cpio_header_t *header, char** file_name, unsigned long* file_size, char** data, cpio_header_t **next_header);

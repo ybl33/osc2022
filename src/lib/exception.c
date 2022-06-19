@@ -141,6 +141,42 @@ void syn_handler (trap_frame_t* trap_frame) {
         case 10:
             thread_signal_return();
             break;
+        case 11:
+            ret = open(trap_frame->regs[0], trap_frame->regs[1]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 12:
+            ret = close(trap_frame->regs[0]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 13:
+            ret = write(trap_frame->regs[0], trap_frame->regs[1], trap_frame->regs[2]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 14:
+            ret = read(trap_frame->regs[0], trap_frame->regs[1], trap_frame->regs[2]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 15:
+            ret = mkdir(trap_frame->regs[0], trap_frame->regs[1]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 16:
+            ret = mount(trap_frame->regs[0], trap_frame->regs[1], trap_frame->regs[2], trap_frame->regs[3], trap_frame->regs[4]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 17:
+            ret = chdir(trap_frame->regs[0]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 18:
+            ret = lseek64(trap_frame->regs[0], trap_frame->regs[1],trap_frame->regs[2]);
+            trap_frame->regs[0] = ret;
+            break;
+        case 19:
+            ret = ioctl(trap_frame->regs[0], trap_frame->regs[1], trap_frame->regs[2]);
+            trap_frame->regs[0] = ret;
+            break;
         default:
             uart_puts("[syn_handler] Unsupported svc: ");
             uart_puth(svc);
